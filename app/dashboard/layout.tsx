@@ -15,6 +15,7 @@ export default function DashboardLayout({
   const { connection } = useWallet()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
+  const [showContent, setShowContent] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -22,6 +23,10 @@ export default function DashboardLayout({
         router.push("/")
       } else {
         setIsLoading(false)
+        // Add a small delay before showing content to ensure smooth transition
+        setTimeout(() => {
+          setShowContent(true)
+        }, 300)
       }
     }, 1000)
 
@@ -29,7 +34,12 @@ export default function DashboardLayout({
   }, [connection, router])
 
   if (isLoading) {
-    return <LoadingScreen onComplete={() => setIsLoading(false)} />
+    return <LoadingScreen onComplete={() => {
+      setIsLoading(false)
+      setTimeout(() => {
+        setShowContent(true)
+      }, 300)
+    }} />
   }
 
   if (!connection) {
@@ -39,7 +49,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-900">
       <main className="w-full">{children}</main>
-      <FloatingNavigation />
+      {showContent && <FloatingNavigation />}
     </div>
   )
 }

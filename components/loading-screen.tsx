@@ -21,16 +21,16 @@ export function LoadingScreen({ onComplete }: { onComplete: () => void }) {
   }, [onComplete])
 
   return (
-    <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-neutral-950 flex items-center justify-center z-50">
       <div className="text-center">
         <div className="mb-8">
           <div className="pulse-loader mx-auto"></div>
         </div>
-        <h2 className="text-2xl font-bold text-orange-500 mb-4">IPA Platform</h2>
-        <p className="text-gray-400 mb-6">Loading your IP asset management platform...</p>
+        <h2 className="text-2xl font-bold text-white mb-4 font-redHatDisplay">Mint <span className="text-transparent font-satisfy font-medium" style={{ WebkitTextStroke: '1px white'}}>Matrix</span></h2>
+        <p className="text-gray-400 mb-6 font-redHatDisplay">Loading your IP asset management platform...</p>
         <div className="w-64 bg-gray-700 rounded-full h-2 mx-auto">
           <div
-            className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+            className="bg-gradient-to-r from-pink-400 to-blue-500 h-2 rounded-full transition-all duration-300"
             style={{ width: `${progress}%` }}
           ></div>
         </div>

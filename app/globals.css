@@ -87,36 +87,147 @@
 }
 
 .loading-spinner {
-  border: 3px solid #374151;
-  border-top: 3px solid #f97316;
+  border: 2px solid transparent;
   border-radius: 50%;
+  border-top: 2px solid #ec4899; /* Pink */
+  border-right: 2px solid #3b82f6; /* Blue */
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Alternative with gradient background approach */
+.loading-spinner-gradient {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #ec4899, #3b82f6, #ec4899);
+  animation: spin 1s linear infinite;
+  position: relative;
+}
+
+.loading-spinner-gradient::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  background: #18181b; /* Match your background */
+  border-radius: 50%;
 }
 
 .pulse-loader {
   display: inline-block;
   width: 40px;
   height: 40px;
-  background-color: #f97316;
   border-radius: 100%;
-  animation: pulse-scale 1.0s infinite ease-in-out;
+  background: linear-gradient(45deg, #ec4899, #3b82f6);
+  background-size: 200% 200%;
+  animation: morph-colors 2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes pulse-scale {
+.pulse-loader::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, transparent 40%, rgba(255,255,255,0.1) 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: glow-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes morph-colors {
   0% {
-    transform: scale(0);
+    background-position: 0% 50%;
+    transform: scale(1) rotate(0deg);
+    border-radius: 50%;
+  }
+  25% {
+    background-position: 100% 50%;
+    transform: scale(1.1) rotate(90deg);
+    border-radius: 40%;
+  }
+  50% {
+    background-position: 0% 50%;
+    transform: scale(1) rotate(180deg);
+    border-radius: 30%;
+  }
+  75% {
+    background-position: 100% 50%;
+    transform: scale(1.1) rotate(270deg);
+    border-radius: 40%;
   }
   100% {
-    transform: scale(1.0);
-    opacity: 0;
+    background-position: 0% 50%;
+    transform: scale(1) rotate(360deg);
+    border-radius: 50%;
+  }
+}
+
+@keyframes glow-pulse {
+  0% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+}
+
+/* Add to globals.css */
+.gradient-text-stroke {
+  background: linear-gradient(45deg, #ec4899, #3b82f6, #ec4899);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-x 3s ease infinite;
+  position: relative;
+}
+
+.gradient-text-stroke::before {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: linear-gradient(45deg, #ec4899, #3b82f6, #ec4899);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-stroke: 2px transparent;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-x 3s ease infinite;
+  z-index: -1;
+}
+
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
 }

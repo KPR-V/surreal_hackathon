@@ -24,58 +24,6 @@ export const FloatingDock = ({
   )
 }
 
-const FloatingDockMobile = ({
-  items,
-  className,
-}: {
-  items: { title: string; icon: React.ReactNode; href: string }[]
-  className?: string
-}) => {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className={cn("relative block md:hidden", className)}>
-      <AnimatePresence>
-        {open && (
-          <motion.div layoutId="nav" className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-2">
-            {items.map((item, idx) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                exit={{
-                  opacity: 0,
-                  y: 10,
-                  transition: {
-                    delay: idx * 0.05,
-                  },
-                }}
-                transition={{ delay: (items.length - 1 - idx) * 0.05 }}
-              >
-                <a
-                  href={item.href}
-                  key={item.title}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800 border border-orange-500/20 hover:border-orange-500"
-                >
-                  <div className="h-4 w-4 text-orange-500">{item.icon}</div>
-                </a>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800 border border-orange-500/20 hover:border-orange-500"
-      >
-        {open ? <X className="h-5 w-5 text-orange-500" /> : <Menu className="h-5 w-5 text-orange-500" />}
-      </button>
-    </div>
-  )
-}
-
 const FloatingDockDesktop = ({
   items,
   className,
@@ -89,13 +37,22 @@ const FloatingDockDesktop = ({
       onMouseMove={(e) => mouseX.set(e.pageX)}
       onMouseLeave={() => mouseX.set(Number.POSITIVE_INFINITY)}
       className={cn(
-        "mx-auto hidden h-16 items-end gap-4 rounded-2xl bg-gray-800/90 backdrop-blur-sm border border-orange-500/20 px-4 pb-3 md:flex",
+        "mx-auto hidden h-16 items-end gap-4 rounded-2xl px-4 pb-3 md:flex relative",
+        "before:absolute before:inset-0 before:rounded-2xl before:p-[2px] before:bg-gradient-to-r before:from-pink-500 before:via-blue-500 before:to-pink-500",
+        "after:absolute after:inset-[2px] after:rounded-2xl after:bg-zinc-950/90 after:backdrop-blur-sm",
+        "shadow-[inset_0_0_20px_rgba(236,72,153,0.2),inset_0_0_40px_rgba(59,130,246,0.2)]",
         className,
       )}
+      style={{ 
+        backdropFilter: 'blur(8px)',
+        boxShadow: 'inset 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 30px rgba(59, 130, 246, 0.3), 0 0 25px rgba(236, 72, 153, 0.1)'
+      }}
     >
-      {items.map((item) => (
-        <IconContainer mouseX={mouseX} key={item.title} {...item} />
-      ))}
+      <div className="relative z-10 flex items-end gap-4 w-full h-full">
+        {items.map((item) => (
+          <IconContainer mouseX={mouseX} key={item.title} {...item} />
+        ))}
+      </div>
     </motion.div>
   )
 }
@@ -148,6 +105,10 @@ function IconContainer({
 
   const [hovered, setHovered] = useState(false)
 
+  // Determine if this is a center item that should have blue hover
+  const isCenterItem = title === "Add IPA" || title === "My Account"
+  const hoverColor = isCenterItem ? "hover:bg-blue-500/20" : "hover:bg-pink-500/20"
+
   return (
     <a href={href}>
       <motion.div
@@ -155,7 +116,7 @@ function IconContainer({
         style={{ width, height }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="relative flex aspect-square items-center justify-center rounded-full bg-gray-700 hover:bg-orange-500/20 transition-colors"
+        className={`relative flex aspect-square items-center justify-center rounded-full bg-zinc-950 ${hoverColor} transition-colors`}
       >
         <AnimatePresence>
           {hovered && (
@@ -163,7 +124,7 @@ function IconContainer({
               initial={{ opacity: 0, y: 10, x: "-50%" }}
               animate={{ opacity: 1, y: 0, x: "-50%" }}
               exit={{ opacity: 0, y: 2, x: "-50%" }}
-              className="absolute -top-8 left-1/2 w-fit rounded-md border border-gray-600 bg-gray-800 px-2 py-0.5 text-xs whitespace-pre text-white"
+              className="absolute -top-8 left-1/2 w-fit rounded-md border border-zinc-600 bg-zinc-950 px-2 py-0.5 text-xs whitespace-pre text-white"
             >
               {title}
             </motion.div>
@@ -171,11 +132,80 @@ function IconContainer({
         </AnimatePresence>
         <motion.div
           style={{ width: widthIcon, height: heightIcon }}
-          className="flex items-center justify-center text-orange-500"
+          className="flex items-center justify-center text-white"
         >
           {icon}
         </motion.div>
       </motion.div>
     </a>
+  )
+}
+
+const FloatingDockMobile = ({
+  items,
+  className,
+}: {
+  items: { title: string; icon: React.ReactNode; href: string }[]
+  className?: string
+}) => {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={cn("relative block md:hidden", className)}>
+      <AnimatePresence>
+        {open && (
+          <motion.div layoutId="nav" className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-2">
+            {items.map((item, idx) => {
+              const isCenterItem = item.title === "Add IPA" || item.title === "My Account"
+              const borderGradient = isCenterItem 
+                ? "before:bg-gradient-to-r before:from-blue-500 before:to-blue-600" 
+                : "before:bg-gradient-to-r before:from-pink-500 before:to-blue-500"
+              
+              return (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                  }}
+                  exit={{
+                    opacity: 0,
+                    y: 10,
+                    transition: {
+                      delay: idx * 0.05,
+                    },
+                  }}
+                  transition={{ delay: (items.length - 1 - idx) * 0.05 }}
+                >
+                  <a
+                    href={item.href}
+                    key={item.title}
+                    className={`relative flex h-10 w-10 items-center justify-center rounded-full before:absolute before:inset-0 before:rounded-full before:p-[2px] ${borderGradient} after:absolute after:inset-[2px] after:rounded-full after:bg-zinc-950/90`}
+                    style={{
+                      boxShadow: isCenterItem 
+                        ? 'inset 0 0 8px rgba(59, 130, 246, 0.4), 0 0 12px rgba(59, 130, 246, 0.2)'
+                        : 'inset 0 0 8px rgba(236, 72, 153, 0.4), 0 0 12px rgba(236, 72, 153, 0.2)'
+                    }}
+                  >
+                    <div className={`relative z-10 h-4 w-4 ${isCenterItem ? 'text-blue-500' : 'text-pink-500'}`}>
+                      {item.icon}
+                    </div>
+                  </a>
+                </motion.div>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <button
+        onClick={() => setOpen(!open)}
+        className="relative flex h-10 w-10 items-center justify-center rounded-full before:absolute before:inset-0 before:rounded-full before:p-[2px] before:bg-gradient-to-r before:from-pink-500 before:to-blue-500 after:absolute after:inset-[2px] after:rounded-full after:bg-zinc-950/90"
+        style={{
+          boxShadow: 'inset 0 0 8px rgba(236, 72, 153, 0.4), inset 0 0 8px rgba(59, 130, 246, 0.4), 0 0 12px rgba(236, 72, 153, 0.2)'
+        }}
+      >
+        {open ? <X className="relative z-10 h-5 w-5 text-pink-500" /> : <Menu className="relative z-10 h-5 w-5 text-pink-500" />}
+      </button>
+    </div>
   )
 }
