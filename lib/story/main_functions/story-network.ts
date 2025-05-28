@@ -5,8 +5,8 @@ import { StoryClient, StoryConfig } from "@story-protocol/core-sdk";
 export function useStoryClient() {
   const { data: wallet, isLoading } = useWalletClient();
 
-  async function getStoryClient(): Promise<StoryClient | null> {
-    if (!wallet) return null;
+  async function getStoryClient(): Promise<StoryClient> {
+    if (!wallet) throw new Error("Wallet not found");
     
     const config: StoryConfig = {
       wallet: wallet,

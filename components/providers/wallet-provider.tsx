@@ -7,12 +7,40 @@ import { WagmiProvider } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { PropsWithChildren } from "react";
 import { aeneid } from "@story-protocol/core-sdk";
-import {mainnet, polygon, optimism, arbitrum, base} from "wagmi/chains"
+import {
+  // Mainnets
+  mainnet, 
+  bsc, 
+  arbitrum,
+  avalanche,
+  b3,
+  base,
+  bitlayer,
+  blast,
+  gravity,
+  merlin,
+  neoxMainnet,
+  optimism,
+  polygon,
+  scroll,
+  worldchain,
+  opBNB,
+  zksync, 
+  corn,
+  berachain,
+  mantle,
+  xLayer,
+  polygonZkEvm,
+  
+  // Testnets
+  botanixTestnet,
+  berachainTestnetbArtio,
+  monadTestnet} from "wagmi/chains"
 const config = getDefaultConfig({
   appName: "MintMatrix",
   clientId: process.env.NEXT_PUBLIC_TOMO_CLIENT_ID as string,
   projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string,
-  chains: [aeneid,mainnet, polygon, optimism, arbitrum, base],
+  chains: [aeneid,mainnet, polygon, optimism, arbitrum, base,berachain,bsc,avalanche,b3,bitlayer,blast,gravity,merlin,neoxMainnet,opBNB,zksync,corn,mantle,xLayer,polygonZkEvm,botanixTestnet,berachainTestnetbArtio,monadTestnet,scroll,worldchain],
   wallets:[{
     groupName:"Popular",
     wallets:[
