@@ -1,70 +1,45 @@
-"use client"
+"use client";
+import '@tomo-inc/tomo-evm-kit/styles.css';
+import { getDefaultConfig, TomoEVMKitProvider } from "@tomo-inc/tomo-evm-kit";
+import { metaMaskWallet, rainbowWallet, walletConnectWallet } from '@tomo-inc/tomo-evm-kit/wallets';
+import {argentWallet, berasigWallet, bestWallet, bifrostWallet, binanceWallet, bitgetWallet, bitskiWallet, bitverseWallet, bloomWallet, braveWallet, bybitWallet, clvWallet, coin98Wallet, coinbaseWallet, compassWallet, coreWallet, dawnWallet, desigWallet, enkryptWallet, foxWallet, frameWallet, frontierWallet, gateWallet, imTokenWallet, injectedWallet, iopayWallet, kaiaWallet, kaikasWallet, krakenWallet, kresusWallet, ledgerWallet, magicEdenWallet,  mewWallet, nestWallet, oktoWallet, okxWallet, omniWallet, oneInchWallet, oneKeyWallet, paraSwapWallet, phantomWallet, rabbyWallet,  ramperWallet, roninWallet, safeWallet, safeheronWallet, safepalWallet, seifWallet, subWallet, tahoWallet, talismanWallet, tokenaryWallet, tokenPocketWallet, trustWallet, uniswapWallet} from '@tomo-inc/tomo-evm-kit/wallets';
+import { WagmiProvider } from "wagmi";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { PropsWithChildren } from "react";
+import { aeneid } from "@story-protocol/core-sdk";
+import {mainnet, polygon, optimism, arbitrum, base} from "wagmi/chains"
+const config = getDefaultConfig({
+  appName: "MintMatrix",
+  clientId: process.env.NEXT_PUBLIC_TOMO_CLIENT_ID as string,
+  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string,
+  chains: [aeneid,mainnet, polygon, optimism, arbitrum, base],
+  wallets:[{
+    groupName:"Popular",
+    wallets:[
+      metaMaskWallet, rainbowWallet, walletConnectWallet
+    ],
+  },
+{
+  groupName:"more wallets",
+  wallets:[
+    argentWallet, berasigWallet, bestWallet, bifrostWallet, binanceWallet, bitgetWallet, bitskiWallet, bitverseWallet, bloomWallet, braveWallet, bybitWallet, clvWallet, coin98Wallet, coinbaseWallet, compassWallet, coreWallet, dawnWallet, desigWallet, enkryptWallet, foxWallet, frameWallet, frontierWallet, gateWallet, imTokenWallet, injectedWallet, iopayWallet, kaiaWallet, kaikasWallet, krakenWallet, kresusWallet, ledgerWallet, magicEdenWallet,  mewWallet, nestWallet, oktoWallet, okxWallet, omniWallet, oneInchWallet, oneKeyWallet, paraSwapWallet, phantomWallet, rabbyWallet,  ramperWallet, roninWallet, safeWallet, safeheronWallet, safepalWallet, seifWallet, subWallet, tahoWallet, talismanWallet, tokenaryWallet, tokenPocketWallet, trustWallet, uniswapWallet
+  ],
+},
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { tomoWallet, type WalletConnection } from "@/lib/wallet/tomo-wallet"
+],
+  ssr: true, 
+});
 
-interface WalletContextType {
-  connection: WalletConnection | null
-  isLoading: boolean
-  connectWallet: () => Promise<void>
-  disconnectWallet: () => void
-  getBalance: () => Promise<string>
-}
+const queryClient = new QueryClient();
 
-const WalletContext = createContext<WalletContextType | undefined>(undefined)
-
-export function WalletProvider({ children }: { children: ReactNode }) {
-  const [connection, setConnection] = useState<WalletConnection | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    const savedConnection = tomoWallet.getConnection()
-    if (savedConnection) {
-      setConnection(savedConnection)
-    }
-  }, [])
-
-  const connectWallet = async () => {
-    setIsLoading(true)
-    try {
-      const newConnection = await tomoWallet.connect()
-      setConnection(newConnection)
-    } catch (error) {
-      console.error("Failed to connect wallet:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const disconnectWallet = async () => {
-    await tomoWallet.disconnect()
-    setConnection(null)
-  }
-
-  const getBalance = async () => {
-    if (!connection) throw new Error("Wallet not connected")
-    return await tomoWallet.getBalance(connection.address)
-  }
-
+export function WalletProvider({ children }: PropsWithChildren) {
   return (
-    <WalletContext.Provider
-      value={{
-        connection,
-        isLoading,
-        connectWallet,
-        disconnectWallet,
-        getBalance,
-      }}
-    >
-      {children}
-    </WalletContext.Provider>
-  )
-}
-
-export function useWallet() {
-  const context = useContext(WalletContext)
-  if (context === undefined) {
-    throw new Error("useWallet must be used within a WalletProvider")
-  }
-  return context
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <TomoEVMKitProvider>
+          {children}
+        </TomoEVMKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
 }

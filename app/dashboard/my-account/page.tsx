@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card"
+import { Button } from "../../../components/ui/button"
+import { Badge } from "../../../components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
 import { Wallet, TrendingUp, Coins, FileText, Download, DollarSign, ArrowUpRight } from "lucide-react"
-
+import { useAccountModal } from "@tomo-inc/tomo-evm-kit"
 interface UserIPA {
   id: string
   title: string
@@ -23,7 +23,7 @@ export default function MyAccountPage() {
   const [loading, setLoading] = useState(true)
   const [totalRevenue, setTotalRevenue] = useState(0)
   const [claimingRevenue, setClaimingRevenue] = useState(false)
-
+  const{openAccountModal}=useAccountModal()
   useEffect(() => {
     const loadUserData = async () => {
       setLoading(true)
@@ -96,9 +96,17 @@ export default function MyAccountPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">My Account</h1>
-        <p className="text-gray-400">Manage your IP assets and earnings</p>
+     <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">My Account</h1>
+          <p className="text-gray-400">Manage your IP assets and earnings</p>
+        </div>
+        <Button 
+          onClick={openAccountModal} 
+          className="bg-orange-500 hover:bg-orange-600"
+        >
+          Account
+        </Button>
       </div>
 
       {/* Overview Cards */}

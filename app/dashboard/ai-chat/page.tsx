@@ -1,15 +1,16 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Send, ImageIcon, Video, Music, Plus, Download, Share2 } from "lucide-react"
+import { Button } from "../../../components/ui/button"
+import { Card, CardContent } from "../../../components/ui/card"
+import { Badge } from "../../../components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "../../../components/ui/tabs"
+import { Send, ImageIcon, Video, Music, Plus, Download, Share2, Upload, X } from "lucide-react"
 import axios from "axios"
 import { Buffer } from "buffer"
+import { useAccountModal } from "@tomo-inc/tomo-evm-kit"
 interface GeneratedContent {
   id: string;
-  type: "image" | "audio" |"video";
+  type: "image" | "video" | "audio";
   prompt: string;
   url: string;
   timestamp: Date;
@@ -27,6 +28,7 @@ export default function AIChatPage() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>([])
   const [activeTab, setActiveTab] = useState("image")
   const [imageModels, setImageModels] = useState<string[]>([])
+  const{openAccountModal}=useAccountModal()
   const [selectedImageModel, setSelectedImageModel] = useState<string>("")
   const MAX_CHARS = 1000;
 
@@ -199,9 +201,17 @@ export default function AIChatPage() {
 
   return (
     <div className="p-4 max-w-6xl mx-auto h-screen overflow-hidden">
-      <div className="mb-4">
-        <h1 className="text-3xl font-bold text-white mb-1">AI Content Generator</h1>
-        <p className="text-gray-400 text-sm">Generate images, videos, and audio using AI</p>
+       <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Marketplace</h1>
+          <p className="text-gray-400">Discover and license intellectual property assets</p>
+        </div>
+        <Button 
+          onClick={openAccountModal} 
+          className="bg-orange-500 hover:bg-orange-600"
+        >
+          Account
+        </Button>
       </div>
 
       <style jsx global>{`
@@ -262,7 +272,7 @@ export default function AIChatPage() {
                 {activeTab === "image" && (
                   <div>
                     <label className="text-sm font-medium text-gray-300 mb-1 block">
-                      Select Model
+                      Select Image Model
                     </label>
                     <select 
                       value={selectedImageModel}

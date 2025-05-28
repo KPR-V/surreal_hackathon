@@ -2,9 +2,9 @@
 
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { FloatingDock } from "@/components/ui/floating-dock"
+import { FloatingDock } from "../ui/floating-dock"
 import { Store, MessageSquare, User, Plus, ShoppingCart, LogOut } from "lucide-react"
-import { useWallet } from "@/components/providers/wallet-provider"
+import { useDisconnect  } from "wagmi"
 import { motion, AnimatePresence } from "framer-motion"
 
 const navigation = [
@@ -37,13 +37,12 @@ const navigation = [
 
 export function FloatingNavigation() {
 	const pathname = usePathname()
-	const { disconnectWallet } = useWallet()
+	const {disconnect}= useDisconnect()
 	const [isVisible, setIsVisible] = useState(true)
 	const [isHovered, setIsHovered] = useState(false)
 	const [isInitialized, setIsInitialized] = useState(false)
 
 	useEffect(() => {
-		// Initialize with a slight delay to ensure proper mounting
 		const initTimer = setTimeout(() => {
 			setIsInitialized(true)
 		}, 100)
@@ -54,17 +53,17 @@ export function FloatingNavigation() {
 	useEffect(() => {
 		if (!isInitialized) return
 
-		// Show dock for 5 seconds after page load, then hide
+	
 		setIsVisible(true)
 		const timer = setTimeout(() => {
 			setIsVisible(false)
 		}, 5000)
 
 		return () => clearTimeout(timer)
-	}, [pathname, isInitialized]) // Reset timer when pathname changes and component is initialized
+	}, [pathname, isInitialized]) 
 
 	const handleLogout = () => {
-		disconnectWallet()
+		disconnect()
 		window.location.href = "/"
 	}
 
@@ -72,7 +71,7 @@ export function FloatingNavigation() {
 		...navigation,
 		{
 			title: "Logout",
-			href: "#",
+			href: "/",
 			icon: <LogOut className="h-full w-full" onClick={handleLogout} />,
 		},
 	]

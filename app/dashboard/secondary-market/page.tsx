@@ -1,15 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "../../../components/ui/button"
+import { Input } from "../../../components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card"
+import { Badge } from "../../../components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/dialog"
 import { ShoppingCart, Coins, Wallet, Plus, Search, TrendingUp, DollarSign } from "lucide-react"
-import { useOptimizedSearch } from "@/hooks/use-optimized-search"
-
+import { useOptimizedSearch } from "../../../hooks/use-optimized-search"
+import { useAccountModal } from "@tomo-inc/tomo-evm-kit"
 interface MarketListing {
   id: string
   seller: string
@@ -37,7 +37,7 @@ export default function SecondaryMarketPage() {
   const [selectedToken, setSelectedToken] = useState<UserToken | null>(null)
   const [sellQuantity, setSellQuantity] = useState("")
   const [sellPrice, setSellPrice] = useState("")
-
+  const{openAccountModal}=useAccountModal()
   const [searchResult, handleSearch] = useOptimizedSearch(listings, {
     keys: ["ipaTitle", "seller"],
     enableFuzzySearch: true,
@@ -141,9 +141,17 @@ export default function SecondaryMarketPage() {
 
   return (
     <div className="p-8 pb-24">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Secondary Market</h1>
-        <p className="text-gray-400">Trade license and royalty tokens</p>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Secondary Market</h1>
+          <p className="text-gray-400">Trade license and royalty tokens</p>
+        </div>
+        <Button 
+          onClick={openAccountModal} 
+          className="bg-orange-500 hover:bg-orange-600"
+        >
+          Account
+        </Button>
       </div>
 
       <Tabs defaultValue="marketplace" className="space-y-6">

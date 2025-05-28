@@ -3,23 +3,23 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useWallet } from "@/components/providers/wallet-provider"
-import { LoadingScreen } from "@/components/loading-screen"
-import { FloatingNavigation } from "@/components/navigation/floating-navigation"
+import { useAccount } from "wagmi"
+import { LoadingScreen } from "../../components/loading-screen"
+import { FloatingNavigation } from "../../components/navigation/floating-navigation"
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { connection } = useWallet()
+  const { isConnected } = useAccount()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [showContent, setShowContent] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!connection) {
+      if (!isConnected) {
         router.push("/")
       } else {
         setIsLoading(false)
@@ -31,7 +31,7 @@ export default function DashboardLayout({
     }, 1000)
 
     return () => clearTimeout(timer)
-  }, [connection, router])
+  }, [isConnected, router])
 
   if (isLoading) {
     return <LoadingScreen onComplete={() => {
@@ -42,7 +42,7 @@ export default function DashboardLayout({
     }} />
   }
 
-  if (!connection) {
+  if (!isConnected) {
     return null
   }
 

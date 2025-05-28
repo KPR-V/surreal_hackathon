@@ -87,7 +87,7 @@ export function useOptimizedSearch<T extends Record<string, any>>(
 
   return [
     {
-      results: results.map(({ _searchString, ...item }) => item as T),
+      results: results.map(({ _searchString, ...item }) => item as unknown as T),
       isLoading,
       searchTerm,
     },

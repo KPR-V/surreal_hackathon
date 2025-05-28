@@ -1,17 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "../../../components/ui/button"
+import { Input } from "../../../components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/dialog"
+import { Badge } from "../../../components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select"
 import { Grid, LucideList, Search, Eye, Coins, Filter } from "lucide-react"
-import { useOptimizedSearch } from "@/hooks/use-optimized-search"
+import { useOptimizedSearch } from "../../../hooks/use-optimized-search"
 import { FixedSizeList as VirtualList } from "react-window"
-
+import { useAccountModal,useChainModal,useAddRecentTransaction } from "@tomo-inc/tomo-evm-kit"
 interface IPA {
   id: string
   title: string
@@ -31,7 +31,8 @@ export default function MarketplacePage() {
   const [selectedIPA, setSelectedIPA] = useState<IPA | null>(null)
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [mintingLoading, setMintingLoading] = useState(false)
-
+ const {openAccountModal}=useAccountModal()
+ const {openChainModal}=useChainModal()
   // Optimized search
   const [searchResult, handleSearch] = useOptimizedSearch(ipas, {
     keys: ["title", "creator", "licenseTerms"],
@@ -114,9 +115,17 @@ export default function MarketplacePage() {
 
   return (
     <div className="p-8 pb-24">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Marketplace</h1>
-        <p className="text-gray-400">Discover and license intellectual property assets</p>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Marketplace</h1>
+          <p className="text-gray-400">Discover and license intellectual property assets</p>
+        </div>
+        <Button 
+          onClick={openAccountModal} 
+          className="bg-orange-500 hover:bg-orange-600"
+        >
+          Account
+        </Button>
       </div>
 
       <Tabs defaultValue="platform" className="mb-6">
@@ -220,7 +229,7 @@ export default function MarketplacePage() {
             </div>
           ) : (
             <div className="h-96">
-              <VirtualList height={384} itemCount={filteredResults.length} itemSize={88} itemData={filteredResults}>
+              <VirtualList width={"100%"} height={384} itemCount={filteredResults.length} itemSize={88} itemData={filteredResults}>
                 {ListItem}
               </VirtualList>
             </div>
