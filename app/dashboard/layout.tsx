@@ -47,7 +47,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-neutral-950">
       <main className="w-full">{children}</main>
       {showContent && <FloatingNavigation />}
     </div>

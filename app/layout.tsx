@@ -29,7 +29,7 @@ const redHatDisplay = Red_Hat_Display({
 })
 
 export const metadata: Metadata = {
-  title: "IPA Platform - Intellectual Property Asset Management",
+  title: "MintMatrix",
   description: "Register, manage, and trade your intellectual property assets",
     generator: 'v0.dev'
 }
