@@ -1303,19 +1303,18 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
         title={cardConfig.title}
       />
       
-    <SummaryModal
-  isOpen={isModalOpen}
-  onClose={handleModalClose}
-  onConfirm={handleModalConfirm}
-  onEdit={handleModalEdit}
-  formData={formData}
-  questions={cardConfig.questions}
-  // Pass batch data for cards that support batching - adding mint-and-register-ip
-  batchFormData={(cardConfig.id === "register-ip" || cardConfig.id === "register-derivative-ip" || cardConfig.id === "mint-and-register-derivative-ip" || cardConfig.id === "mint-and-register-ip") ? batchFormData : undefined}
-  // Enable Register More button for these card types - adding mint-and-register-ip
-  onRegisterMore={(cardConfig.id === "register-ip" || cardConfig.id === "register-derivative-ip" || cardConfig.id === "mint-and-register-derivative-ip" || cardConfig.id === "mint-and-register-ip") ? handleRegisterMore : undefined}
-  pilTerms={pilTerms} // Pass PIL terms to summary modal
-/>
+      <SummaryModal
+      isOpen={isModalOpen}
+      onClose={handleModalClose}
+      onConfirm={handleModalConfirm}
+      onEdit={handleModalEdit}
+      formData={formData}
+      questions={cardConfig.questions}
+      batchFormData={(cardConfig.id === "register-ip" || cardConfig.id === "register-derivative-ip" || cardConfig.id === "mint-and-register-derivative-ip" || cardConfig.id === "mint-and-register-ip") ? batchFormData : undefined}
+      onRegisterMore={(cardConfig.id === "register-ip" || cardConfig.id === "register-derivative-ip" || cardConfig.id === "mint-and-register-derivative-ip" || cardConfig.id === "mint-and-register-ip") ? handleRegisterMore : undefined}
+      pilTerms={pilTerms}
+      onPilTermsUpdate={setPilTerms} // Add this to sync PIL terms back
+    />
       
       {/* PIL Modal - for cards that support PIL */}
       {(cardConfig.id === "register-ip" || cardConfig.id === "mint-and-register-ip" || cardConfig.id === "attach-pil-to-ip") && (

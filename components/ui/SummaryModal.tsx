@@ -21,6 +21,7 @@ interface SummaryModalProps {
   batchFormData?: Record<string, any>[]; // For batch registration
   onRegisterMore?: () => void; // For "Register More" functionality
   pilTerms?: any; // Current PIL terms
+  onPilTermsUpdate?: (pilTerms: any) => void; // Add this prop to sync PIL terms back to parent
 }
 
 export const SummaryModal: React.FC<SummaryModalProps> = ({
@@ -33,6 +34,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
   batchFormData,
   onRegisterMore,
   pilTerms,
+  onPilTermsUpdate, // Add this
 }) => {
 
   const [isPILModalOpen, setIsPILModalOpen] = useState(false);
@@ -48,8 +50,10 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
   const handleAttachPIL = (newPilTerms: any) => {
     setCurrentPilTerms(newPilTerms);
     setIsPILModalOpen(false);
-    // Note: This updates the local state, but the parent component should also be notified
-    // You might need to add an onPilTermsUpdate prop to update the parent's pilTerms state
+    // Notify parent component of PIL terms update
+    if (onPilTermsUpdate) {
+      onPilTermsUpdate(newPilTerms);
+    }
   };
 
   const handlePILModalOpen = () => {
@@ -351,7 +355,7 @@ const renderPILTermsSummary = (pilTermsData: any) => {
                   })}
 
                   {/* Show PIL terms requirement status for attach-pil-to-ip */}
-                  {isAttachPILCard && pilOption === "I want to create new PIL terms and attach" && !currentPilTerms && (
+                 {isAttachPILCard && pilOption === "I want to create new PIL terms and attach" && !currentPilTerms && (
                     <div className="last:pb-0">
                       <div className="text-xs font-medium text-white/60 mb-1">
                         PIL Terms Creation <span className="text-red-400/80 ml-1">*</span>
@@ -368,7 +372,7 @@ const renderPILTermsSummary = (pilTermsData: any) => {
                   )}
                   
                   {/* Additional PIL summary at the end for mint-and-register-ip card when PIL is attached */}
-                  {formData.attach_pil === "Yes" && currentPilTerms && !questions.some(q => q.id === "attach_pil") && (
+                   {formData.attach_pil === "Yes" && currentPilTerms && !questions.some(q => q.id === "attach_pil") && (
                     <div className="last:pb-0">
                       <div className="text-xs font-medium text-white/60 mb-1">
                         PIL Terms Attached

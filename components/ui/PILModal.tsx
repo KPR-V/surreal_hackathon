@@ -248,7 +248,13 @@ export const PILModal: React.FC<PILModalProps> = ({ isOpen, onClose, onAttachPIL
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div 
+          className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] [&::-webkit-scrollbar]:hidden" 
+          style={{ 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none'
+          }}
+        >
           
           {/* Selection Mode */}
           {mode === "selection" && (
@@ -286,8 +292,7 @@ export const PILModal: React.FC<PILModalProps> = ({ isOpen, onClose, onAttachPIL
           )}
 
           {/* Template Mode */}
-
-{mode === "template" && (
+          {mode === "template" && (
   <div className="space-y-6">
     <div className="flex items-center space-x-3 mb-6">
       <button
@@ -301,23 +306,19 @@ export const PILModal: React.FC<PILModalProps> = ({ isOpen, onClose, onAttachPIL
       <h3 className="text-lg font-semibold text-white">Select a PIL Template</h3>
     </div>
     
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       {pilTemplates.map((template) => (
         <div 
           key={template.id}
           onClick={() => handleTemplateSelect(template.id)}
           className={`
             relative rounded-xl overflow-hidden transition-all duration-300 cursor-pointer
+            bg-zinc-800/40 hover:bg-zinc-800/60
             ${selectedTemplate === template.id 
-              ? 'bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
-              : 'bg-zinc-800/40 border border-zinc-700/50 hover:border-zinc-500/70 hover:bg-zinc-800/60'}
+              ? 'border-1 border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.5)]' 
+              : 'border border-zinc-700/50 hover:border-zinc-500/70'}
           `}
         >
-          {/* Subtle gradient background effect */}
-          {selectedTemplate === template.id && (
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/5"></div>
-          )}
-          
           <div className="relative p-5">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -437,17 +438,6 @@ export const PILModal: React.FC<PILModalProps> = ({ isOpen, onClose, onAttachPIL
               <span className="text-zinc-400 text-sm">Use Case:</span>
               <p className="text-zinc-300 text-sm mt-1 pl-4 border-l-2 border-zinc-700">{template.useCase}</p>
             </div>
-            
-            {/* Selected indicator */}
-            {selectedTemplate === template.id && (
-              <div className="absolute top-3 right-3">
-                <div className="w-6 h-6 rounded-full bg-blue-500/70 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       ))}
