@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { ChevronRight, ChevronLeft, Upload, FileText, ImageIcon, Video, Music, Check } from "lucide-react"
 import { TimelineDemo } from "./TimelineDemo"
+import { TabsDemo } from "./TabsDemo"
 
 interface Question {
   id: string
@@ -174,6 +175,6 @@ export default function AddIPAPage() {
   }
 
   return (
-    <TimelineDemo/>
+    <><div className="bg-neutral-950"><TabsDemo/></div></>
   )
 }

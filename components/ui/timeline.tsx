@@ -51,10 +51,12 @@ export const Timeline = ({
   data,
   currentStep,
   completionPercentage,
+  title = "IP Licensing Form", // Add default title prop
 }: {
   data: TimelineEntry[];
   currentStep: number;
   completionPercentage: number;
+  title?: string;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,10 +95,10 @@ export const Timeline = ({
       {/* Centered Header Container */}
       <div className="flex flex-col items-center justify-center text-center py-20 px-4 md:px-8 lg:px-10">
         <h2 className="text-lg md:text-5xl mb-4 text-black dark:text-white font-redHatDisplay">
-          IP Licensing Form
+          {title}
         </h2>
         <p className="text-neutral-700 dark:text-neutral-300 text-sm md:text-base max-w-md font-redHatDisplay">
-          Complete the form step by step to license your intellectual property.
+          Complete the form step by step to complete your task.
         </p>
       </div>
 
