@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { IPDetailsModal } from './ipDetailsModal';
-import { IPEdgesService } from './ipEdgesService';
+import { IPEdgesService, DisputeInfo } from './ipEdgesService';
 
 interface IPAsset {
   id: string;
@@ -34,6 +34,7 @@ interface IPAsset {
   isGroup?: boolean;
   latestArbitrationPolicy?: string;
   detailsLoaded?: boolean;
+  disputeInfo?: DisputeInfo;
 }
 
 interface MyIPCardProps {
@@ -49,9 +50,20 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [relationships, setRelationships] = useState<RelationshipCounts>({ parents: 0, children: 0 });
   const [loadingRelationships, setLoadingRelationships] = useState(false);
+  
+  const [disputeInfo, setDisputeInfo] = useState<DisputeInfo>({
+    hasDisputes: false,
+    activeDisputes: [],
+    resolvedDisputes: [],
+    totalDisputes: 0,
+    isInitiator: false,
+    isTarget: false
+  });
+  const [loadingDisputes, setLoadingDisputes] = useState(false);
 
   useEffect(() => {
     fetchRelationshipCounts();
+    fetchDisputeInfo();
   }, [asset.ipId]);
 
   const fetchRelationshipCounts = async () => {
@@ -69,6 +81,18 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
     }
   };
 
+  const fetchDisputeInfo = async () => {
+    setLoadingDisputes(true);
+    try {
+      const disputes = await IPEdgesService.getIPDisputes(asset.ipId);
+      setDisputeInfo(disputes);
+    } catch (error) {
+      console.error('Error fetching dispute info:', error);
+    } finally {
+      setLoadingDisputes(false);
+    }
+  };
+
   const truncateHash = (hash?: string) => {
     if (!hash) return 'N/A';
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
@@ -76,6 +100,22 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+  };
+
+  // Create normalized asset with default values for modal
+  const normalizedAssetForModal = {
+    ...asset,
+    disputeInfo,
+    ancestorCount: asset.ancestorCount || 0,
+    descendantCount: asset.descendantCount || 0,
+    childrenCount: asset.childrenCount || 0,
+    parentCount: asset.parentCount || 0,
+    rootCount: asset.rootCount || 0,
+    rootIpIds: asset.rootIpIds || [],
+    blockTimestamp: asset.blockTimestamp || '',
+    transactionHash: asset.transactionHash || '',
+    latestArbitrationPolicy: asset.latestArbitrationPolicy || '',
+    detailsLoaded: asset.detailsLoaded || false
   };
 
   return (
@@ -113,6 +153,20 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
                 <span className="text-xs text-purple-300 font-medium">Group</span>
               </div>
             )}
+
+            {/* Dispute Badge */}
+            {disputeInfo.hasDisputes && (
+              <div className="absolute bottom-3 right-3 px-2 py-1 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-lg">
+                <div className="flex items-center space-x-1">
+                  <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <span className="text-xs text-red-300 font-medium">
+                    {disputeInfo.activeDisputes.length > 0 ? 'Active Dispute' : 'Dispute'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-6">
@@ -143,15 +197,39 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
               </div>
             </div>
 
-            {/* PIL Status & Chain Info */}
+            {/* PIL Status & Chain Info & Dispute Status */}
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  asset.pilAttached ? 'bg-blue-400' : 'bg-zinc-600'
-                }`}></div>
-                <span className="text-xs text-zinc-400">
-                  {asset.pilAttached ? 'PIL Attached' : 'No PIL'}
-                </span>
+              <div className="flex items-center space-x-4">
+                {/* PIL Status */}
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    asset.pilAttached ? 'bg-blue-400' : 'bg-zinc-600'
+                  }`}></div>
+                  <span className="text-xs text-zinc-400">
+                    {asset.pilAttached ? 'PIL Attached' : 'No PIL'}
+                  </span>
+                </div>
+
+                {/* Dispute Status */}
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    disputeInfo.activeDisputes.length > 0 
+                      ? 'bg-red-400' 
+                      : disputeInfo.hasDisputes 
+                        ? 'bg-yellow-400' 
+                        : 'bg-green-400'
+                  }`}></div>
+                  <span className="text-xs text-zinc-400">
+                    {loadingDisputes 
+                      ? 'Checking...' 
+                      : disputeInfo.activeDisputes.length > 0 
+                        ? `${disputeInfo.activeDisputes.length} Active Dispute${disputeInfo.activeDisputes.length > 1 ? 's' : ''}`
+                        : disputeInfo.hasDisputes 
+                          ? 'Past Disputes' 
+                          : 'No Disputes'
+                    }
+                  </span>
+                </div>
               </div>
               
               {asset.nftMetadata?.chainId && (
@@ -173,6 +251,25 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
               </div>
             </div>
 
+           
+
+            {/* Dispute Warning Banner */}
+            {disputeInfo.activeDisputes.length > 0 && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-red-300">Active Dispute</p>
+                    <p className="text-xs text-red-400">
+                      {disputeInfo.activeDisputes.length} ongoing dispute{disputeInfo.activeDisputes.length > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex space-x-2">
               <button 
@@ -193,7 +290,7 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
       <IPDetailsModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        asset={asset}
+        asset={normalizedAssetForModal}
       />
     </>
   );
