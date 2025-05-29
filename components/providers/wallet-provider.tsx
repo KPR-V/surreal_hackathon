@@ -1,6 +1,6 @@
 "use client";
 import '@tomo-inc/tomo-evm-kit/styles.css';
-import { getDefaultConfig, TomoEVMKitProvider } from "@tomo-inc/tomo-evm-kit";
+import { lightTheme, midnightTheme, darkTheme, getDefaultConfig, TomoEVMKitProvider } from "@tomo-inc/tomo-evm-kit";
 import { metaMaskWallet, rainbowWallet, walletConnectWallet } from '@tomo-inc/tomo-evm-kit/wallets';
 import {argentWallet, berasigWallet, bestWallet, bifrostWallet, binanceWallet, bitgetWallet, bitskiWallet, bitverseWallet, bloomWallet, braveWallet, bybitWallet, clvWallet, coin98Wallet, coinbaseWallet, compassWallet, coreWallet, dawnWallet, desigWallet, enkryptWallet, foxWallet, frameWallet, frontierWallet, gateWallet, imTokenWallet, injectedWallet, iopayWallet, kaiaWallet, kaikasWallet, krakenWallet, kresusWallet, ledgerWallet, magicEdenWallet,  mewWallet, nestWallet, oktoWallet, okxWallet, omniWallet, oneInchWallet, oneKeyWallet, paraSwapWallet, phantomWallet, rabbyWallet,  ramperWallet, roninWallet, safeWallet, safeheronWallet, safepalWallet, seifWallet, subWallet, tahoWallet, talismanWallet, tokenaryWallet, tokenPocketWallet, trustWallet, uniswapWallet} from '@tomo-inc/tomo-evm-kit/wallets';
 import { WagmiProvider } from "wagmi";
@@ -47,14 +47,12 @@ const config = getDefaultConfig({
       metaMaskWallet, rainbowWallet, walletConnectWallet
     ],
   },
-{
-  groupName:"more wallets",
-  wallets:[
-    argentWallet, berasigWallet, bestWallet, bifrostWallet, binanceWallet, bitgetWallet, bitskiWallet, bitverseWallet, bloomWallet, braveWallet, bybitWallet, clvWallet, coin98Wallet, coinbaseWallet, compassWallet, coreWallet, dawnWallet, desigWallet, enkryptWallet, foxWallet, frameWallet, frontierWallet, gateWallet, imTokenWallet, injectedWallet, iopayWallet, kaiaWallet, kaikasWallet, krakenWallet, kresusWallet, ledgerWallet, magicEdenWallet,  mewWallet, nestWallet, oktoWallet, okxWallet, omniWallet, oneInchWallet, oneKeyWallet, paraSwapWallet, phantomWallet, rabbyWallet,  ramperWallet, roninWallet, safeWallet, safeheronWallet, safepalWallet, seifWallet, subWallet, tahoWallet, talismanWallet, tokenaryWallet, tokenPocketWallet, trustWallet, uniswapWallet
-  ],
-},
-
-],
+  {
+    groupName:"more wallets",
+    wallets:[
+      argentWallet, berasigWallet, bestWallet, bifrostWallet, binanceWallet, bitgetWallet, bitskiWallet, bitverseWallet, bloomWallet, braveWallet, bybitWallet, clvWallet, coin98Wallet, coinbaseWallet, compassWallet, coreWallet, dawnWallet, desigWallet, enkryptWallet, foxWallet, frameWallet, frontierWallet, gateWallet, imTokenWallet, injectedWallet, iopayWallet, kaiaWallet, kaikasWallet, krakenWallet, kresusWallet, ledgerWallet, magicEdenWallet,  mewWallet, nestWallet, oktoWallet, okxWallet, omniWallet, oneInchWallet, oneKeyWallet, paraSwapWallet, phantomWallet, rabbyWallet,  ramperWallet, roninWallet, safeWallet, safeheronWallet, safepalWallet, seifWallet, subWallet, tahoWallet, talismanWallet, tokenaryWallet, tokenPocketWallet, trustWallet, uniswapWallet
+    ],
+  }],
   ssr: true, 
 });
 
@@ -64,7 +62,15 @@ export function WalletProvider({ children }: PropsWithChildren) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <TomoEVMKitProvider>
+        <TomoEVMKitProvider 
+          theme={lightTheme({
+            accentColor: 'black',
+            accentColorForeground: 'gray',
+            borderRadius: 'large',
+            fontStack: 'system',
+            overlayBlur: 'small',
+          })}
+        >
           {children}
         </TomoEVMKitProvider>
       </QueryClientProvider>

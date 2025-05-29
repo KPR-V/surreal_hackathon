@@ -43,12 +43,21 @@ export default function IntroPage() {
             {isConnected ? (
               <>
                 
-                <Button onClick={() => router.push("/dashboard/marketplace")} className="w-72">
+                <Button onClick={() => router.push("/dashboard/marketplace")}  className={`
+                  group w-72 px-6 py-3 text-white font-medium rounded-lg relative overflow-hidden
+                  transition-all duration-300
+                  bg-gradient-to-r from-zinc-900 to-zinc-900 hover:from-zinc-900 hover:to-zinc-900
+                  disabled:opacity-50
+                  before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-blue-500/10 before:to-transparent
+                  before:translate-x-[-200%] before:animate-[${isConnecting ? 'shimmer_1.5s_ease-in-out' : 'none'}]
+                  after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-pink-500/10 after:to-transparent
+                  after:translate-x-[-200%] after:animate-[${isConnecting ? 'shimmer_1.5s_ease-in-out_0.2s' : 'none'}]
+                `}>
                   Go to Marketplace
                 
                 </Button>
 
-                <p className="text-red-500 text-sm">click here if not automatically navigated</p>
+                <p className="text-blue-500 text-sm">click here if not automatically navigated</p>
                 
               </>
             ) : (
