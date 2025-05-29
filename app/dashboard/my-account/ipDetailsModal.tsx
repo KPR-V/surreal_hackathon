@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { FamilyTreeVisualization } from './familyTreeVisualization';
+import { LicensingInfo } from './licensingInfo';
 
 interface IPAsset {
   id: string;
@@ -233,10 +235,10 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
         onClick={onClose}
       />
       
-      {/* Modal Content */}
-      <div className="relative bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/30 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-8 border-b border-zinc-700/20">
+      {/* Modal Content - Adjusted height structure */}
+      <div className="relative bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/30 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+        {/* Header - Fixed */}
+        <div className="flex items-center justify-between p-8 border-b border-zinc-700/20 flex-shrink-0">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-pink-500/20 rounded-xl flex items-center justify-center border border-blue-500/20">
               <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,12 +261,13 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
           </button>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="px-8 pt-6">
+        {/* Tab Navigation - Fixed */}
+        <div className="px-8 pt-6 flex-shrink-0">
           <div className="flex space-x-1 bg-zinc-800/30 rounded-xl p-1">
             {[
               { id: 'overview', label: 'Overview' },
               { id: 'family', label: 'IP Family' },
+              { id: 'licensing', label: 'Licensing' },
               { id: 'metadata', label: 'Metadata' },
               { id: 'technical', label: 'Technical' }
             ].map((tab) => (
@@ -283,8 +286,8 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-8 max-h-[60vh] overflow-y-auto">
+        {/* Content - Scrollable */}
+        <div className="px-8 py-6 flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="flex items-center space-x-3">
@@ -404,41 +407,55 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
                 </div>
               )}
 
-              {/* IP Family Tab */}
+              {/* IP Family Tab - Compact layout */}
               {activeDetailTab === 'family' && (
-                <div className="space-y-6">
-                  {/* Family Tree Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-zinc-800/30 rounded-xl p-4 text-center">
-                      <div className="text-2xl font-bold text-green-400 mb-1">
+                <div className="space-y-4">
+                  {/* Family Tree Stats - More compact */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="bg-zinc-800/30 rounded-xl p-3 text-center">
+                      <div className="text-xl font-bold text-green-400 mb-1">
                         {assetDetails?.ancestorCount || asset.ancestorCount || 0}
                       </div>
                       <p className="text-xs text-zinc-500 uppercase tracking-wider">Ancestors</p>
                     </div>
-                    <div className="bg-zinc-800/30 rounded-xl p-4 text-center">
-                      <div className="text-2xl font-bold text-orange-400 mb-1">
+                    <div className="bg-zinc-800/30 rounded-xl p-3 text-center">
+                      <div className="text-xl font-bold text-orange-400 mb-1">
                         {assetDetails?.parentCount || asset.parentCount || 0}
                       </div>
                       <p className="text-xs text-zinc-500 uppercase tracking-wider">Parents</p>
                     </div>
-                    <div className="bg-zinc-800/30 rounded-xl p-4 text-center">
-                      <div className="text-2xl font-bold text-blue-400 mb-1">
+                    <div className="bg-zinc-800/30 rounded-xl p-3 text-center">
+                      <div className="text-xl font-bold text-blue-400 mb-1">
                         {assetDetails?.childrenCount || asset.childrenCount || 0}
                       </div>
                       <p className="text-xs text-zinc-500 uppercase tracking-wider">Children</p>
                     </div>
-                    <div className="bg-zinc-800/30 rounded-xl p-4 text-center">
-                      <div className="text-2xl font-bold text-purple-400 mb-1">
+                    <div className="bg-zinc-800/30 rounded-xl p-3 text-center">
+                      <div className="text-xl font-bold text-purple-400 mb-1">
                         {assetDetails?.descendantCount || asset.descendantCount || 0}
                       </div>
                       <p className="text-xs text-zinc-500 uppercase tracking-wider">Descendants</p>
                     </div>
                   </div>
 
-                  {/* Root IPs */}
+                  {/* Interactive Family Tree Visualization */}
+                  <FamilyTreeVisualization 
+                    currentAsset={{
+                      id: asset.id,
+                      name: asset.name,
+                      ipId: asset.ipId,
+                      ancestorCount: assetDetails?.ancestorCount || asset.ancestorCount || 0,
+                      parentCount: assetDetails?.parentCount || asset.parentCount || 0,
+                      childrenCount: assetDetails?.childrenCount || asset.childrenCount || 0,
+                      descendantCount: assetDetails?.descendantCount || asset.descendantCount || 0,
+                      rootIpIds: assetDetails?.rootIpIds || asset.rootIpIds
+                    }}
+                  />
+
+                  {/* Root IPs - More compact */}
                   {(assetDetails?.rootIpIds || asset.rootIpIds) && (assetDetails?.rootIpIds || asset.rootIpIds)!.length > 0 && (
-                    <div className="bg-zinc-800/30 rounded-xl p-6">
-                      <h3 className="text-lg font-medium text-white mb-4">Root IP Assets</h3>
+                    <div className="bg-zinc-800/30 rounded-xl p-4">
+                      <h3 className="text-base font-medium text-white mb-3">Root IP Assets</h3>
                       <div className="space-y-2">
                         {(assetDetails?.rootIpIds || asset.rootIpIds)!.map((rootId, index) => (
                           <div key={index} className="flex justify-between items-center py-2 px-3 bg-zinc-700/30 rounded-lg">
@@ -455,20 +472,12 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
                       </div>
                     </div>
                   )}
-
-                  {/* Family Tree Visualization Placeholder */}
-                  <div className="bg-zinc-800/30 rounded-xl p-6 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-zinc-700/50 rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 5v4" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 5v4" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-white mb-2">Family Tree Visualization</h3>
-                    <p className="text-sm text-zinc-500">Interactive family tree coming soon</p>
-                  </div>
                 </div>
+              )}
+
+              {/* Licensing Tab */}
+              {activeDetailTab === 'licensing' && (
+                <LicensingInfo ipId={asset.ipId} />
               )}
 
               {/* Metadata Tab */}
@@ -649,8 +658,8 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="px-8 py-6 border-t border-zinc-700/20 flex justify-between items-center">
+        {/* Footer Actions - Fixed at bottom, always visible */}
+        <div className="px-8 py-4 border-t border-zinc-700/20 flex justify-between items-center flex-shrink-0 bg-zinc-900/95">
           <div className="text-sm text-zinc-500">
             Asset ID: {truncateHash(asset.ipId, 12)}
           </div>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IPDetailsModal } from './ipDetailsModal';
+import { IPEdgesService } from './ipEdgesService';
 
 interface IPAsset {
   id: string;
@@ -39,8 +40,34 @@ interface MyIPCardProps {
   asset: IPAsset;
 }
 
+interface RelationshipCounts {
+  parents: number;
+  children: number;
+}
+
 export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [relationships, setRelationships] = useState<RelationshipCounts>({ parents: 0, children: 0 });
+  const [loadingRelationships, setLoadingRelationships] = useState(false);
+
+  useEffect(() => {
+    fetchRelationshipCounts();
+  }, [asset.ipId]);
+
+  const fetchRelationshipCounts = async () => {
+    setLoadingRelationships(true);
+    try {
+      const relationshipData = await IPEdgesService.getIPRelationships(asset.ipId);
+      setRelationships({
+        parents: relationshipData.parents.length,
+        children: relationshipData.children.length
+      });
+    } catch (error) {
+      console.error('Error fetching relationship counts:', error);
+    } finally {
+      setLoadingRelationships(false);
+    }
+  };
 
   const truncateHash = (hash?: string) => {
     if (!hash) return 'N/A';
@@ -135,7 +162,7 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div className="bg-zinc-800/30 rounded-lg p-3">
                 <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Revenue</p>
                 <p className="text-sm font-medium text-blue-400">{asset.revenue}</p>
