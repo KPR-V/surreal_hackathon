@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { IPEdgesService, ComprehensiveLicensingInfo, IPLicenseTerms, DetailedIPLicenseTerms } from './ipEdgesService';
+import { getComprehensiveLicensingInfo, ComprehensiveLicensingInfo } from './ipEdgesService';
 
 interface LicensingInfoProps {
   ipId: string;
@@ -27,7 +27,7 @@ export const LicensingInfo: React.FC<LicensingInfoProps> = ({ ipId }) => {
   const fetchComprehensiveLicensingInfo = async () => {
     setLoading(true);
     try {
-      const data = await IPEdgesService.getComprehensiveLicensingInfo(ipId);
+      const data = await getComprehensiveLicensingInfo(ipId);
       setLicensingData(data);
     } catch (error) {
       console.error('Error fetching comprehensive licensing info:', error);

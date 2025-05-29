@@ -1,5 +1,5 @@
 import React, {JSX, useEffect, useRef, useState } from 'react';
-import { IPEdgesService, IPEdge } from './ipEdgesService';
+import { getIPRelationships, IPEdge, testConnection } from './ipEdgesService';
 
 interface FamilyNode {
   id: string;
@@ -43,14 +43,14 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
     console.log('Fetching real relationships for:', currentAsset.ipId);
     
     // Test API connection first
-    const isConnected = await IPEdgesService.testConnection();
+    const isConnected = await testConnection();
     if (!isConnected) {
       console.log('API connection test failed, using mock data');
       generateFamilyTree();
       return;
     }
     
-    const relationshipData = await IPEdgesService.getIPRelationships(currentAsset.ipId);
+    const relationshipData = await getIPRelationships(currentAsset.ipId);
     console.log('Relationship data received:', relationshipData);
     
     setRelationships(relationshipData);

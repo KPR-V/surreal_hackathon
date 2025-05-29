@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FamilyTreeVisualization } from './familyTreeVisualization';
 import { LicensingInfo } from './licensingInfo';
 import { DisputeInfoComponent } from './disputeInfo';
-import { IPEdgesService, DisputeInfo } from './ipEdgesService';
+import { DisputeInfo } from './ipEdgesService';
 
 interface IPAsset {
   id: string;
@@ -81,25 +81,13 @@ interface IPDetailsModalProps {
   asset: IPAsset;
 }
 
-// Enhanced StoryAPIService for modal
-class StoryAPIService {
-  private static readonly API_BASE_URL = 'https://api.storyapis.com/api/v3';
-  private static readonly API_KEY = process.env.NEXT_PUBLIC_STORY_API_KEY || 'MhBsxkU1z9fG6TofE59KqiiWV-YlYE8Q4awlLQehF3U';
-  private static readonly CHAIN = 'story-aeneid';
 
-  static async getFullIPDetails(ipId: string): Promise<IPAssetDetails | null> {
+const StoryAPIService = {
+  async getFullIPDetails(ipId: string): Promise<IPAssetDetails | null> {
     try {
       console.log('Fetching full IP details for:', ipId);
       
-      const options = {
-        method: 'GET',
-        headers: {
-          'X-Api-Key': this.API_KEY,
-          'X-Chain': this.CHAIN
-        }
-      };
-
-      const response = await fetch(`${this.API_BASE_URL}/assets/${ipId}`, options);
+      const response = await fetch(`/api/assets/${ipId}`);
       
       if (!response.ok) {
         console.error('Failed to fetch IP details:', response.status);
@@ -152,7 +140,7 @@ class StoryAPIService {
       return null;
     }
   }
-}
+};
 
 export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose, asset }) => {
   const [activeDetailTab, setActiveDetailTab] = useState('overview');

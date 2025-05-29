@@ -18,18 +18,41 @@ interface GeneratedContent {
     apiUsed?: string;
     jobId?: string;
     generationTime?: string;
+    videoFrames?: string;
+    videoFPS?: string;
+    samplingRate?: string;
+    maxTokens?: string;
+    conditioningMelody?: string;
   };
 }
-
 
 export default function AIChatPage() {
   const [prompt, setPrompt] = useState("")
   const [generating, setGenerating] = useState(false)
+  const [generatingVideo, setGeneratingVideo] = useState(false)
+  const [generatingAudio, setGeneratingAudio] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>([])
   const [activeTab, setActiveTab] = useState("image")
   const [imageModels, setImageModels] = useState<string[]>([])
   const{openAccountModal}=useAccountModal()
   const [selectedImageModel, setSelectedImageModel] = useState<string>("")
+  
+
+
+  // Video models
+  const videoModels = [
+    { id: "cogvideox", name: "CogVideoX" },
+    { id: "wanx", name: "WanX" }
+  ];
+  const [selectedVideoModel, setSelectedVideoModel] = useState("cogvideox");
+  
+  // Audio settings
+  const [audioSettings, setAudioSettings] = useState({
+    samplingRate: 32000,
+    maxTokens: 256,
+    conditioningAudio: null as File | null
+  });
+  
   const MAX_CHARS = 1000;
 
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -53,9 +76,41 @@ export default function AIChatPage() {
       }
     } catch (error) {
       console.error("Error fetching image models:", error);
-  
     }
   }; 
+
+  // Audio file upload handler
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('audio/')) {
+        alert('Please select a valid audio file');
+        return;
+      }
+      // Validate file size (max 30 seconds, roughly 5MB for WAV)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Audio file should be under 5MB (approximately 30 seconds)');
+        return;
+      }
+      setAudioSettings(prev => ({ ...prev, conditioningAudio: file }));
+    }
+  };
+
+  const removeAudioFile = () => {
+    setAudioSettings(prev => ({ ...prev, conditioningAudio: null }));
+  };
+
+  // Upload audio file to get URL
+  const uploadAudioFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('audio', file);
+    
+    // You'll need to create an upload endpoint or use a file hosting service
+    // For now, we'll return null to indicate no conditioning audio
+    // In production, you'd upload to your server or cloud storage
+    return '';
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -150,7 +205,144 @@ export default function AIChatPage() {
       setGenerating(false);
     }
   };
-  
+
+  // Video generation function
+  const handleVideoGenerate = async () => {
+    if (!prompt.trim()) return;
+    setGeneratingVideo(true);
+
+    try {
+      const response = await fetch("/api/video/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          model: selectedVideoModel,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Video generation failed: ${response.status} - ${errorText}`);
+      }
+
+      // Read buffer and convert to data URL
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      const videoUrl = `data:video/mp4;base64,${base64}`;
+
+      // Grab metadata from headers
+      const jobId = response.headers.get("Job-Offer-Id") ?? "unknown";
+      const generationTime = response.headers.get("Generation-Time");
+      const videoFrames = response.headers.get("Video-Frames") || undefined;
+      const videoFPS = response.headers.get("Video-FPS");
+
+      // Build new content item
+      const newContent: GeneratedContent = {
+        id: Date.now().toString(),
+        type: "video",
+        prompt,
+        url: videoUrl,
+        timestamp: new Date(),
+        metadata: {
+          apiUsed: 'modelslab-video',
+          jobId,
+          generationTime: generationTime ? `${generationTime}s` : undefined,
+          videoFrames,
+          videoFPS: videoFPS ? `${videoFPS} fps` : undefined
+        }
+      };
+
+      // Prepend it to your list
+      setGeneratedContent((prev) => [newContent, ...prev]);
+
+      // Clear prompt
+      setPrompt("");
+
+      console.log(`✅ Video generated successfully`);
+
+    } catch (err) {
+      console.error("❌ Error during video generation:", err);
+      // Show error message to user
+    } finally {
+      setGeneratingVideo(false);
+    }
+  };
+
+  // New audio generation function
+  const handleAudioGenerate = async () => {
+    if (!prompt.trim()) return;
+    setGeneratingAudio(true);
+
+    try {
+      let initAudioUrl = null;
+      
+      // Upload conditioning audio if provided
+      if (audioSettings.conditioningAudio) {
+        // In a real implementation, you'd upload the file to your server or cloud storage
+        // For now, we'll skip conditioning audio
+        console.log('Conditioning audio file selected but upload not implemented');
+      }
+
+      const response = await fetch("/api/audio/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          init_audio: initAudioUrl,
+          sampling_rate: audioSettings.samplingRate,
+          max_new_token: audioSettings.maxTokens,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Audio generation failed: ${response.status} - ${errorText}`);
+      }
+
+      // Read buffer and convert to data URL
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      const audioUrl = `data:audio/wav;base64,${base64}`;
+
+      // Grab metadata from headers
+      const jobId = response.headers.get("Job-Offer-Id") ?? "unknown";
+      const generationTime = response.headers.get("Generation-Time");
+      const samplingRate = response.headers.get("Sampling-Rate");
+      const maxTokens = response.headers.get("Max-Tokens") || undefined;
+
+      // Build new content item
+      const newContent: GeneratedContent = {
+        id: Date.now().toString(),
+        type: "audio",
+        prompt,
+        url: audioUrl,
+        timestamp: new Date(),
+        metadata: {
+          apiUsed: 'modelslab-musicgen',
+          jobId,
+          generationTime: generationTime ? `${generationTime}s` : undefined,
+          samplingRate: samplingRate ? `${samplingRate} Hz` : undefined,
+          maxTokens,
+          conditioningMelody: audioSettings.conditioningAudio ? 'Yes' : 'No'
+        }
+      };
+
+      // Prepend it to your list
+      setGeneratedContent((prev) => [newContent, ...prev]);
+
+      // Clear prompt
+      setPrompt("");
+
+      console.log(`✅ Audio generated successfully`);
+
+    } catch (err) {
+      console.error("❌ Error during audio generation:", err);
+      // Show error message to user
+    } finally {
+      setGeneratingAudio(false);
+    }
+  };
   
   const handleRegisterAsIPA = async (content: GeneratedContent) => {
     // Simulate IPA registration
@@ -158,44 +350,58 @@ export default function AIChatPage() {
     // Show success message and redirect to Add IPA page with pre-filled data
   }
 
-  const handleDownload = (imageUrl: string) => {
+  const handleDownload = (contentUrl: string, contentType: "image" | "video" | "audio") => {
     // Create a temporary anchor element
     const a = document.createElement('a');
-    a.href = imageUrl;
-    a.download = `ai-generated-${Date.now()}.png`;
+    a.href = contentUrl;
+    let extension = "png";
+    if (contentType === "video") extension = "mp4";
+    if (contentType === "audio") extension = "wav";
+    a.download = `ai-generated-${contentType}-${Date.now()}.${extension}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  const handleShare = async (imageUrl: string, prompt: string) => {
+  const handleShare = async (contentUrl: string, prompt: string, contentType: "image" | "video" | "audio") => {
     if (navigator.share) {
       try {
         // Convert base64 to blob for sharing
-        const response = await fetch(imageUrl);
+        const response = await fetch(contentUrl);
         const blob = await response.blob();
-        const file = new File([blob], `ai-generated-${Date.now()}.png`, { type: 'image/png' });
+        let mimeType = "image/png";
+        let extension = "png";
+        
+        if (contentType === "video") {
+          mimeType = "video/mp4";
+          extension = "mp4";
+        } else if (contentType === "audio") {
+          mimeType = "audio/wav";
+          extension = "wav";
+        }
+        
+        const file = new File([blob], `ai-generated-${contentType}-${Date.now()}.${extension}`, { type: mimeType });
         
         await navigator.share({
-          title: 'AI Generated Image',
-          text: `Check out this AI-generated image: ${prompt}`,
+          title: `AI Generated ${contentType.charAt(0).toUpperCase() + contentType.slice(1)}`,
+          text: `Check out this AI-generated ${contentType}: ${prompt}`,
           files: [file]
         });
       } catch (error) {
         console.error('Error sharing:', error);
         // Fallback for browsers that support clipboard but not share
-        copyImageUrlToClipboard(imageUrl);
+        copyContentUrlToClipboard(contentUrl);
       }
     } else {
       // Fallback for browsers that don't support sharing
-      copyImageUrlToClipboard(imageUrl);
+      copyContentUrlToClipboard(contentUrl);
     }
   };
 
-  const copyImageUrlToClipboard = (imageUrl: string) => {
-    // Copy image URL to clipboard
-    navigator.clipboard.writeText(imageUrl)
-      .then(() => alert('Image URL copied to clipboard!'))
+  const copyContentUrlToClipboard = (contentUrl: string) => {
+    // Copy content URL to clipboard
+    navigator.clipboard.writeText(contentUrl)
+      .then(() => alert('Content URL copied to clipboard!'))
       .catch(err => console.error('Failed to copy URL:', err));
   };
 
@@ -263,7 +469,11 @@ export default function AIChatPage() {
                   <textarea
                     value={prompt}
                     onChange={handlePromptChange}
-                    placeholder={`Enter your ${activeTab} generation prompt...`}
+                    placeholder={
+                      activeTab === "audio" 
+                        ? "e.g., sitar, tabla, flute, Indian classical, fusion, meditative, G# minor, 96 bpm"
+                        : `Enter your ${activeTab} generation prompt...`
+                    }
                     maxLength={MAX_CHARS}
                     className="w-full flex-1 min-h-[150px] p-2 overflow-auto hide-scrollbar bg-gray-700 border border-gray-600 rounded-lg text-white resize-none focus:border-orange-500 focus:outline-none"
                   />
@@ -292,15 +502,128 @@ export default function AIChatPage() {
                   </div>
                 )}
 
+                {activeTab === "video" && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 mb-1 block">
+                      Select Video Model
+                    </label>
+                    <select 
+                      value={selectedVideoModel}
+                      onChange={(e) => setSelectedVideoModel(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-orange-500 focus:outline-none"
+                    >
+                      {videoModels.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {activeTab === "audio" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 mb-1 block">
+                          Sampling Rate
+                        </label>
+                        <select 
+                          value={audioSettings.samplingRate}
+                          onChange={(e) => setAudioSettings(prev => ({ ...prev, samplingRate: parseInt(e.target.value) }))}
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-orange-500 focus:outline-none text-sm"
+                        >
+                          <option value={16000}>16kHz</option>
+                          <option value={22050}>22kHz</option>
+                          <option value={32000}>32kHz</option>
+                          <option value={44100}>44kHz</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 mb-1 block">
+                          Max Tokens
+                        </label>
+                        <select 
+                          value={audioSettings.maxTokens}
+                          onChange={(e) => setAudioSettings(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-orange-500 focus:outline-none text-sm"
+                        >
+                          <option value={256}>256</option>
+                          <option value={512}>512</option>
+                          <option value={768}>768</option>
+                          <option value={1024}>1024</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-300 mb-1 block">
+                        Conditioning Audio (Optional)
+                      </label>
+                      {!audioSettings.conditioningAudio ? (
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="audio/*"
+                            onChange={handleAudioUpload}
+                            className="hidden"
+                            id="audio-upload"
+                          />
+                          <label
+                            htmlFor="audio-upload"
+                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-400 cursor-pointer hover:bg-gray-600 transition-colors flex items-center justify-center text-sm"
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload audio file (max 30s)
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between p-2 bg-gray-700 border border-gray-600 rounded-lg">
+                          <span className="text-sm text-white truncate">
+                            {audioSettings.conditioningAudio.name}
+                          </span>
+                          <Button
+                            onClick={removeAudioFile}
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-400 hover:text-red-300 p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <Button
-                  onClick={handleGenerate}
-                  disabled={generating || !prompt.trim()}
+                  onClick={
+                    activeTab === "image" ? handleGenerate : 
+                    activeTab === "video" ? handleVideoGenerate : 
+                    handleAudioGenerate
+                  }
+                  disabled={
+                    (activeTab === "image" && generating) || 
+                    (activeTab === "video" && generatingVideo) || 
+                    (activeTab === "audio" && generatingAudio) ||
+                    !prompt.trim()
+                  }
                   className="w-full bg-orange-500 hover:bg-orange-600 mt-auto"
                 >
-                  {generating ? (
+                  {activeTab === "image" && generating ? (
                     <div className="flex items-center space-x-2">
                       <div className="loading-spinner w-4 h-4"></div>
-                      <span>Generating...</span>
+                      <span>Generating Image...</span>
+                    </div>
+                  ) : activeTab === "video" && generatingVideo ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="loading-spinner w-4 h-4"></div>
+                      <span>Generating Video...</span>
+                    </div>
+                  ) : activeTab === "audio" && generatingAudio ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="loading-spinner w-4 h-4"></div>
+                      <span>Generating Audio...</span>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-2">
@@ -341,6 +664,21 @@ export default function AIChatPage() {
                               {content.type.toUpperCase()}
                             </Badge>
                             <span className="text-xs text-gray-500">{content.timestamp.toLocaleString()}</span>
+                            {content.metadata?.generationTime && (
+                              <span className="text-xs text-gray-400">
+                                Generated in {content.metadata.generationTime}
+                              </span>
+                            )}
+                            {content.metadata?.videoFPS && (
+                              <span className="text-xs text-gray-400">
+                                {content.metadata.videoFPS}
+                              </span>
+                            )}
+                            {content.metadata?.samplingRate && (
+                              <span className="text-xs text-gray-400">
+                                {content.metadata.samplingRate}
+                              </span>
+                            )}
                           </div>
 
                           <p className="text-white mb-3 text-sm">{content.prompt}</p>
@@ -356,15 +694,38 @@ export default function AIChatPage() {
                               </div>
                             )}
                             {content.type === "video" && (
-                              <div className="w-full max-w-md h-48 bg-gray-700 rounded-lg flex items-center justify-center">
-                                <Video className="w-12 h-12 text-gray-500" />
-                                <span className="ml-2 text-gray-500">Video Preview</span>
+                              <div className="w-full max-w-md">
+                                <video
+                                  src={content.url}
+                                  controls
+                                  loop
+                                  muted
+                                  className="w-full h-auto rounded-lg"
+                                  preload="metadata"
+                                >
+                                  Your browser does not support the video tag.
+                                </video>
                               </div>
                             )}
                             {content.type === "audio" && (
-                              <div className="w-full max-w-md h-24 bg-gray-700 rounded-lg flex items-center justify-center">
-                                <Music className="w-8 h-8 text-gray-500" />
-                                <span className="ml-2 text-gray-500">Audio Preview</span>
+                              <div className="w-full max-w-md">
+                                <audio
+                                  src={content.url}
+                                  controls
+                                  className="w-full"
+                                  preload="metadata"
+                                >
+                                  Your browser does not support the audio element.
+                                </audio>
+                                <div className="mt-2 text-center">
+                                  <div className="flex items-center justify-center text-gray-400">
+                                    <Music className="w-4 h-4 mr-2" />
+                                    <span className="text-sm">AI Generated Music</span>
+                                  </div>
+                                  {content.metadata?.conditioningMelody === 'Yes' && (
+                                    <span className="text-xs text-orange-400">With conditioning melody</span>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -380,15 +741,15 @@ export default function AIChatPage() {
                             <Button 
                               variant="outline" 
                               className="border-gray-600 text-xs py-1 h-8"
-                              onClick={() => handleDownload(content.url)}
+                              onClick={() => handleDownload(content.url, content.type)}
                             >
                               <Download className="w-3 h-3 mr-1" />
-                              Download PNG
+                              Download {content.type === "video" ? "MP4" : content.type === "audio" ? "WAV" : "PNG"}
                             </Button>
                             <Button 
                               variant="outline" 
                               className="border-gray-600 text-xs py-1 h-8"
-                              onClick={() => handleShare(content.url, content.prompt)}
+                              onClick={() => handleShare(content.url, content.prompt, content.type)}
                             >
                               <Share2 className="w-3 h-3 mr-1" />
                               Share

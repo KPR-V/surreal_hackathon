@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { IPEdgesService, DisputeInfo, Dispute } from './ipEdgesService';
+import { DisputeInfo, Dispute, getIPDisputes } from './ipEdgesService';
 
 interface DisputeInfoProps {
   ipId: string;
@@ -23,7 +23,7 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
   const fetchDisputeInfo = async () => {
     setLoading(true);
     try {
-      const data = await IPEdgesService.getIPDisputes(ipId);
+      const data = await getIPDisputes(ipId);
       setDisputeData(data);
     } catch (error) {
       console.error('Error fetching dispute info:', error);

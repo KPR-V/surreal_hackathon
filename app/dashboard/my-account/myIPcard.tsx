@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { IPDetailsModal } from './ipDetailsModal';
-import { IPEdgesService, DisputeInfo } from './ipEdgesService';
+import { getIPRelationships, DisputeInfo, getIPDisputes } from './ipEdgesService';
 
 interface IPAsset {
   id: string;
@@ -69,7 +69,7 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
   const fetchRelationshipCounts = async () => {
     setLoadingRelationships(true);
     try {
-      const relationshipData = await IPEdgesService.getIPRelationships(asset.ipId);
+      const relationshipData = await getIPRelationships(asset.ipId);
       setRelationships({
         parents: relationshipData.parents.length,
         children: relationshipData.children.length
@@ -84,7 +84,7 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
   const fetchDisputeInfo = async () => {
     setLoadingDisputes(true);
     try {
-      const disputes = await IPEdgesService.getIPDisputes(asset.ipId);
+      const disputes = await getIPDisputes(asset.ipId);
       setDisputeInfo(disputes);
     } catch (error) {
       console.error('Error fetching dispute info:', error);
