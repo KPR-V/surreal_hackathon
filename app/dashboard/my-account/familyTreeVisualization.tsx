@@ -1,5 +1,8 @@
-import React, {JSX, useEffect, useRef, useState } from 'react';
-import { getIPRelationships, IPEdge, testConnection } from './ipEdgesService';
+"use client";
+
+import React, { useState, useEffect, useRef } from 'react';
+import { IPEdge } from './types';
+import { getIPRelationships, testConnection } from './ipEdgesService';
 
 interface FamilyNode {
   id: string;
@@ -10,7 +13,7 @@ interface FamilyNode {
   y?: number;
   children?: FamilyNode[];
   parents?: FamilyNode[];
-  edge?: IPEdge; // Store the actual edge data
+  edge?: IPEdge;
 }
 
 interface FamilyTreeVisualizationProps {
@@ -31,48 +34,48 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [familyTree, setFamilyTree] = useState<FamilyNode | null>(null);
   const [loading, setLoading] = useState(true);
-  const [relationships, setRelationships] = useState<{parents: IPEdge[], children: IPEdge[]}>({parents: [], children: []});
+  const [relationships, setRelationships] = useState<{parentEdges: IPEdge[], childEdges: IPEdge[]}>({parentEdges: [], childEdges: []});
 
   useEffect(() => {
     fetchRealRelationships();
   }, [currentAsset]);
 
- const fetchRealRelationships = async () => {
-  setLoading(true);
-  try {
-    console.log('Fetching real relationships for:', currentAsset.ipId);
-    
-    // Test API connection first
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      console.log('API connection test failed, using mock data');
+  const fetchRealRelationships = async () => {
+    setLoading(true);
+    try {
+      console.log('Fetching real relationships for:', currentAsset.ipId);
+      
+      // Test API connection first
+      const isConnected = await testConnection();
+      if (!isConnected) {
+        console.log('API connection test failed, using mock data');
+        generateFamilyTree();
+        return;
+      }
+      
+      const relationshipData = await getIPRelationships(currentAsset.ipId);
+      console.log('Relationship data received:', relationshipData);
+      
+      setRelationships(relationshipData);
+      
+      // Use real data if available, otherwise fall back to mock
+      if (relationshipData.parentEdges.length > 0 || relationshipData.childEdges.length > 0) {
+        generateRealFamilyTree(relationshipData);
+      } else {
+        console.log('No real relationships found, using mock data');
+        generateFamilyTree();
+      }
+    } catch (error) {
+      console.error('Error fetching relationships:', error);
+      // Fallback to mock data
+      console.log('Falling back to mock data due to error');
       generateFamilyTree();
-      return;
+    } finally {
+      setLoading(false);
     }
-    
-    const relationshipData = await getIPRelationships(currentAsset.ipId);
-    console.log('Relationship data received:', relationshipData);
-    
-    setRelationships(relationshipData);
-    
-    // Use real data if available, otherwise fall back to mock
-    if (relationshipData.parents.length > 0 || relationshipData.children.length > 0) {
-      generateRealFamilyTree(relationshipData);
-    } else {
-      console.log('No real relationships found, using mock data');
-      generateFamilyTree();
-    }
-  } catch (error) {
-    console.error('Error fetching relationships:', error);
-    // Fallback to mock data
-    console.log('Falling back to mock data due to error');
-    generateFamilyTree();
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-  const generateRealFamilyTree = (relationshipData: {parents: IPEdge[], children: IPEdge[]}) => {
+  const generateRealFamilyTree = (relationshipData: {parentEdges: IPEdge[], childEdges: IPEdge[]}) => {
     const tree: FamilyNode = {
       id: currentAsset.ipId,
       name: currentAsset.name,
@@ -83,8 +86,8 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
     };
 
     // Generate real parents from edges data
-    if (relationshipData.parents.length > 0) {
-      tree.parents = relationshipData.parents.map((edge, index) => ({
+    if (relationshipData.parentEdges.length > 0) {
+      tree.parents = relationshipData.parentEdges.map((edge, index) => ({
         id: edge.parentIpId,
         name: `IP Asset ${edge.parentIpId.slice(0, 8)}...`,
         type: 'parent' as const,
@@ -95,10 +98,10 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
     }
 
     // Generate real children from edges data
-    if (relationshipData.children.length > 0) {
-      tree.children = relationshipData.children.map((edge, index) => ({
-        id: edge.ipId,
-        name: `IP Asset ${edge.ipId.slice(0, 8)}...`,
+    if (relationshipData.childEdges.length > 0) {
+      tree.children = relationshipData.childEdges.map((edge, index) => ({
+        id: edge.childIpId,
+        name: `IP Asset ${edge.childIpId.slice(0, 8)}...`,
         type: 'child' as const,
         level: 1,
         children: [],
@@ -111,7 +114,7 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
   };
 
   const generateFamilyTree = () => {
-    // Fallback mock data generation (keep existing implementation)
+    // Fallback mock data generation
     const tree: FamilyNode = {
       id: currentAsset.ipId,
       name: currentAsset.name,
@@ -278,23 +281,23 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
             filter: isSelected ? 'drop-shadow(0 0 10px rgb(59 130 246 / 0.5))' : 'none'
           }}
         />
-        
+
         <text
           x={node.x}
           y={node.y! - 5}
           textAnchor="middle"
-          className={`${colors.text} text-xs font-medium fill-current`}
+          className={`fill-current text-xs font-medium ${colors.text}`}
         >
           {truncateText(node.name)}
         </text>
-        
+
         <text
           x={node.x}
           y={node.y! + 10}
           textAnchor="middle"
-          className="text-zinc-500 text-xs fill-current"
+          className="fill-current text-xs text-zinc-500"
         >
-          {node.type.charAt(0).toUpperCase() + node.type.slice(1)}
+          {node.type}
         </text>
 
         {isCurrent && (
@@ -339,10 +342,10 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
   if (loading) {
     return (
       <div className="bg-zinc-800/30 rounded-xl p-6">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-32">
           <div className="flex items-center space-x-3">
-            <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            <div className="text-zinc-500">Loading family tree relationships...</div>
+            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-zinc-400">Loading family tree...</span>
           </div>
         </div>
       </div>
@@ -352,7 +355,7 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
   if (!familyTree) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-zinc-500">Generating family tree...</div>
+        <p className="text-zinc-400">No family tree data available</p>
       </div>
     );
   }
@@ -362,25 +365,9 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
   return (
     <div className="bg-zinc-800/30 rounded-xl p-6">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-lg font-medium text-white">Family Tree Visualization</h3>
-          <p className="text-sm text-zinc-500">
-            {relationships.parents.length + relationships.children.length} real relationships found
-          </p>
-        </div>
-        <div className="flex items-center space-x-4 text-xs">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-green-500/20 border border-green-400 rounded"></div>
-            <span className="text-zinc-400">Parents ({relationships.parents.length})</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-blue-500/20 border-2 border-blue-400 rounded"></div>
-            <span className="text-zinc-400">Current</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-orange-500/20 border border-orange-400 rounded"></div>
-            <span className="text-zinc-400">Children ({relationships.children.length})</span>
-          </div>
+        <h3 className="text-lg font-medium text-white">IP Family Tree</h3>
+        <div className="text-sm text-zinc-400">
+          {relationships.parentEdges.length + relationships.childEdges.length} relationships
         </div>
       </div>
 
@@ -389,58 +376,59 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
         <svg
           ref={svgRef}
           width="800"
-          height={(familyTree as any)?.svgHeight || 400}
-          viewBox={`0 0 800 ${(familyTree as any)?.svgHeight || 400}`}
-          className="block"
-          style={{ minWidth: '800px' }}
+          height={(familyTree as any).svgHeight || 300}
+          className="w-full h-full"
         >
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgb(113 113 122 / 0.1)" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-
           {renderConnections(familyTree)}
-          {familyTree.parents?.map(renderNode)}
           {renderNode(familyTree)}
+          {familyTree.parents?.map(renderNode)}
           {familyTree.children?.map(renderNode)}
         </svg>
       </div>
 
       {/* Enhanced Stats */}
       <div className="mt-4 grid grid-cols-4 gap-3">
-        <div className="bg-zinc-700/30 rounded-lg p-2 text-center">
-          <div className="text-sm font-bold text-green-400">{relationships.parents.length}</div>
-          <div className="text-xs text-zinc-500">Direct Parents</div>
+        <div className="bg-zinc-700/30 rounded-lg p-3 text-center">
+          <p className="text-lg font-bold text-green-400">{relationships.parentEdges.length}</p>
+          <p className="text-xs text-zinc-500">Parents</p>
         </div>
-        <div className="bg-zinc-700/30 rounded-lg p-2 text-center">
-          <div className="text-sm font-bold text-blue-400">1</div>
-          <div className="text-xs text-zinc-500">Current Asset</div>
+        <div className="bg-zinc-700/30 rounded-lg p-3 text-center">
+          <p className="text-lg font-bold text-orange-400">{relationships.childEdges.length}</p>
+          <p className="text-xs text-zinc-500">Children</p>
         </div>
-        <div className="bg-zinc-700/30 rounded-lg p-2 text-center">
-          <div className="text-sm font-bold text-orange-400">{relationships.children.length}</div>
-          <div className="text-xs text-zinc-500">Direct Children</div>
+        <div className="bg-zinc-700/30 rounded-lg p-3 text-center">
+          <p className="text-lg font-bold text-blue-400">{currentAsset.ancestorCount}</p>
+          <p className="text-xs text-zinc-500">Ancestors</p>
         </div>
-        <div className="bg-zinc-700/30 rounded-lg p-2 text-center">
-          <div className="text-sm font-bold text-purple-400">{relationships.parents.length + relationships.children.length}</div>
-          <div className="text-xs text-zinc-500">Total Relations</div>
+        <div className="bg-zinc-700/30 rounded-lg p-3 text-center">
+          <p className="text-lg font-bold text-purple-400">{currentAsset.descendantCount}</p>
+          <p className="text-xs text-zinc-500">Descendants</p>
         </div>
       </div>
 
       {/* Enhanced Selected Node Info */}
       {selectedNodeDetails && (
         <div className="mt-3 p-4 bg-zinc-700/20 rounded-lg border border-zinc-600/30">
-          <h4 className="text-sm font-medium text-white mb-2">Selected Asset Details</h4>
-          <div className="text-xs text-zinc-400 space-y-1">
-            <p><span className="text-zinc-500">ID:</span> {selectedNodeDetails.id}</p>
-            <p><span className="text-zinc-500">Type:</span> {selectedNodeDetails.type}</p>
+          <h4 className="text-sm font-medium text-white mb-2">{selectedNodeDetails.name}</h4>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span className="text-zinc-500">Type:</span>
+              <span className="text-zinc-300 ml-1">{selectedNodeDetails.type}</span>
+            </div>
+            <div>
+              <span className="text-zinc-500">ID:</span>
+              <span className="text-zinc-300 ml-1 font-mono">{selectedNodeDetails.id.slice(0, 8)}...</span>
+            </div>
             {selectedNodeDetails.edge && (
               <>
-                <p><span className="text-zinc-500">License Terms:</span> {selectedNodeDetails.edge.licenseTermsId || 'N/A'}</p>
-                <p><span className="text-zinc-500">License Template:</span> {selectedNodeDetails.edge.licenseTemplate || 'N/A'}</p>
-                <p><span className="text-zinc-500">Created:</span> {formatTimestamp(selectedNodeDetails.edge.blockTime)}</p>
-                <p><span className="text-zinc-500">Transaction:</span> {selectedNodeDetails.edge.transactionHash.slice(0, 10)}...</p>
+                <div>
+                  <span className="text-zinc-500">License:</span>
+                  <span className="text-zinc-300 ml-1">{selectedNodeDetails.edge.licenseTemplate || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-500">Block:</span>
+                  <span className="text-zinc-300 ml-1">{selectedNodeDetails.edge.blockNumber}</span>
+                </div>
               </>
             )}
           </div>

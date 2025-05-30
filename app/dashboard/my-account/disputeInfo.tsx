@@ -1,5 +1,8 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
-import { DisputeInfo, Dispute, getIPDisputes } from './ipEdgesService';
+import { DisputeInfo, Dispute } from './types';
+import { StoryAPIService, PaginatedResponse } from './apiService';
 
 interface DisputeInfoProps {
   ipId: string;
@@ -7,6 +10,11 @@ interface DisputeInfoProps {
 
 export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [allDisputes, setAllDisputes] = useState<Dispute[]>([]);
+  const [pagination, setPagination] = useState<{ hasNext: boolean; next?: string }>({
+    hasNext: false
+  });
   const [disputeData, setDisputeData] = useState<DisputeInfo>({
     hasDisputes: false,
     activeDisputes: [],
@@ -20,15 +28,61 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
     fetchDisputeInfo();
   }, [ipId]);
 
-  const fetchDisputeInfo = async () => {
-    setLoading(true);
+  const fetchDisputeInfo = async (nextCursor?: string) => {
     try {
-      const data = await getIPDisputes(ipId);
-      setDisputeData(data);
+      if (nextCursor) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      const response: PaginatedResponse<any> = await StoryAPIService.fetchDisputes(
+        { where: { targetIpId: ipId } },
+        nextCursor ? { after: nextCursor, limit: 20 } : { limit: 20 }
+      );
+
+      const newDisputes = response.data || [];
+
+      if (nextCursor) {
+        setAllDisputes(prev => [...prev, ...newDisputes]);
+      } else {
+        setAllDisputes(newDisputes);
+      }
+
+      setPagination({
+        hasNext: response.hasNext,
+        next: response.next
+      });
+
+      // Update dispute data with all disputes
+      const allCurrentDisputes = nextCursor ? [...allDisputes, ...newDisputes] : newDisputes;
+      
+      const activeDisputes = allCurrentDisputes.filter((dispute: Dispute) => 
+        dispute.status.toLowerCase() === 'active' || dispute.status.toLowerCase() === 'pending'
+      );
+      const resolvedDisputes = allCurrentDisputes.filter((dispute: Dispute) => 
+        dispute.status.toLowerCase() === 'resolved' || dispute.status.toLowerCase() === 'dismissed'
+      );
+
+      setDisputeData({
+        hasDisputes: allCurrentDisputes.length > 0,
+        activeDisputes,
+        resolvedDisputes,
+        totalDisputes: allCurrentDisputes.length,
+        isInitiator: allCurrentDisputes.some((d: Dispute) => d.initiator === ipId),
+        isTarget: allCurrentDisputes.length > 0
+      });
     } catch (error) {
       console.error('Error fetching dispute info:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreDisputes = () => {
+    if (pagination.next && !loadingMore) {
+      fetchDisputeInfo(pagination.next);
     }
   };
 
@@ -52,13 +106,13 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
     switch (status.toLowerCase()) {
       case 'active':
       case 'pending':
-        return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
+        return 'text-red-400 bg-red-400/10 border-red-400/20';
       case 'resolved':
         return 'text-green-400 bg-green-400/10 border-green-400/20';
       case 'dismissed':
-        return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
+        return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
       case 'disputed':
-        return 'text-red-400 bg-red-400/10 border-red-400/20';
+        return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
       default:
         return 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20';
     }
@@ -68,8 +122,8 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
     <div key={dispute.id} className="bg-zinc-700/30 rounded-lg p-4">
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h4 className="text-sm font-medium text-white mb-1">Dispute #{index + 1}</h4>
-          <span className={`inline-flex px-2 py-1 rounded text-xs font-medium border ${getStatusColor(dispute.status)}`}>
+          <h4 className="text-white font-medium">Dispute #{dispute.id}</h4>
+          <span className={`inline-block px-2 py-1 rounded text-xs border ${getStatusColor(dispute.status)}`}>
             {dispute.status}
           </span>
         </div>
@@ -79,17 +133,6 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-        <div>
-          <span className="text-xs text-zinc-500">Dispute ID:</span>
-          <button 
-            onClick={() => copyToClipboard(dispute.id)}
-            className="block text-sm text-blue-400 hover:text-blue-300 transition-colors font-mono"
-            title="Click to copy"
-          >
-            {truncateHash(dispute.id)}
-          </button>
-        </div>
-
         <div>
           <span className="text-xs text-zinc-500">Initiator:</span>
           <button 
@@ -103,12 +146,12 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
 
         <div>
           <span className="text-xs text-zinc-500">Target Tag:</span>
-          <p className="text-sm text-white">{dispute.targetTag || 'N/A'}</p>
+          <p className="text-sm text-white">{dispute.targetTag}</p>
         </div>
 
         <div>
           <span className="text-xs text-zinc-500">Current Tag:</span>
-          <p className="text-sm text-white">{dispute.currentTag || 'N/A'}</p>
+          <p className="text-sm text-white">{dispute.currentTag}</p>
         </div>
       </div>
 
@@ -116,7 +159,7 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
         {dispute.evidenceHash && (
           <div>
-            <span className="text-xs text-zinc-500">Evidence Hash:</span>
+            <span className="text-xs text-zinc-500">Evidence:</span>
             <button 
               onClick={() => copyToClipboard(dispute.evidenceHash)}
               className="block text-sm text-purple-400 hover:text-purple-300 transition-colors font-mono"
@@ -261,7 +304,7 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
             <span>Active Disputes</span>
           </h3>
           <div className="space-y-4">
-            {disputeData.activeDisputes.map((dispute, index) => renderDispute(dispute, index))}
+            {disputeData.activeDisputes.map((dispute: Dispute, index: number) => renderDispute(dispute, index))}
           </div>
         </div>
       )}
@@ -271,8 +314,28 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
         <div className="bg-zinc-800/30 rounded-xl p-6">
           <h3 className="text-lg font-medium text-white mb-4">Resolved Disputes</h3>
           <div className="space-y-4">
-            {disputeData.resolvedDisputes.map((dispute, index) => renderDispute(dispute, index))}
+            {disputeData.resolvedDisputes.map((dispute: Dispute, index: number) => renderDispute(dispute, index))}
           </div>
+        </div>
+      )}
+
+      {/* Load More Button */}
+      {pagination.hasNext && (
+        <div className="flex justify-center">
+          <button
+            onClick={loadMoreDisputes}
+            disabled={loadingMore}
+            className="px-6 py-3 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingMore ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <span>Loading more disputes...</span>
+              </div>
+            ) : (
+              'Load More Disputes'
+            )}
+          </button>
         </div>
       )}
 

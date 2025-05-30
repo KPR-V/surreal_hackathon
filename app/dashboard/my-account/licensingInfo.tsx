@@ -1,5 +1,8 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
-import { getComprehensiveLicensingInfo, ComprehensiveLicensingInfo } from './ipEdgesService';
+import { ComprehensiveLicensingInfo } from './types';
+import { getComprehensiveLicensingInfo } from './ipEdgesService';
 
 interface LicensingInfoProps {
   ipId: string;
@@ -120,7 +123,7 @@ export const LicensingInfo: React.FC<LicensingInfoProps> = ({ ipId }) => {
         <div className="bg-zinc-800/30 rounded-xl p-6">
           <h3 className="text-lg font-medium text-white mb-4">License Terms</h3>
           <div className="space-y-4">
-            {licensingData.licenseTerms.map((term, index) => (
+            {licensingData.licenseTerms.map((term: any, index: any) => (
               <div key={index} className="bg-zinc-700/30 rounded-lg p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -182,7 +185,7 @@ export const LicensingInfo: React.FC<LicensingInfoProps> = ({ ipId }) => {
         <div className="bg-zinc-800/30 rounded-xl p-6">
           <h3 className="text-lg font-medium text-white mb-4">Detailed License Terms</h3>
           <div className="space-y-4">
-            {licensingData.detailedTerms.map((detailedTerm, index) => (
+            {licensingData.detailedTerms.map((detailedTerm: any, index: any) => (
               <div key={index} className="bg-zinc-700/30 rounded-lg p-4">
                 <div className="mb-4">
                   <div className="flex justify-between items-center mb-2">
@@ -285,7 +288,7 @@ export const LicensingInfo: React.FC<LicensingInfoProps> = ({ ipId }) => {
         <div className="bg-zinc-800/30 rounded-xl p-6">
           <h3 className="text-lg font-medium text-white mb-4">Minting Fees</h3>
           <div className="space-y-2">
-            {licensingData.mintingFees.map((fee, index) => (
+            {licensingData.mintingFees.map((fee: any, index: any) => (
               <div key={index} className="flex justify-between items-center py-2 px-3 bg-zinc-700/30 rounded-lg">
                 <span className="text-sm text-zinc-400">Fee #{index + 1}:</span>
                 <span className="text-sm text-yellow-400 font-medium">
@@ -302,7 +305,7 @@ export const LicensingInfo: React.FC<LicensingInfoProps> = ({ ipId }) => {
         <div className="bg-zinc-800/30 rounded-xl p-6">
           <h3 className="text-lg font-medium text-white mb-4">Recent Licensing Activity</h3>
           <div className="space-y-3">
-            {licensingData.basicLicenses.slice(0, 5).map((license, index) => (
+            {licensingData.basicLicenses.slice(0, 5).map((license: any, index: any) => (
               <div key={index} className="bg-zinc-700/30 rounded-lg p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div className="text-sm text-white">

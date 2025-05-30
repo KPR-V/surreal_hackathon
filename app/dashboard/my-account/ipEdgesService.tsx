@@ -1,241 +1,243 @@
-export interface IPEdge {
-  blockNumber: string;
-  blockTime: string;
-  ipId: string;
-  licenseTemplate: string;
-  licenseTermsId: string;
-  licenseTokenId: string;
-  parentIpId: string;
-  transactionHash: string;
-  transactionIndex: string;
-}
+"use client";
 
-export interface IPLicenseTerms {
-  blockNumber: string;
-  blockTime: string;
-  disabled: boolean;
-  id: string;
-  ipId: string;
-  licenseTemplate: string;
-  licenseTermsId: string;
-  licensingConfig: {
-    commercialRevShare: number;
-    disabled: boolean;
-    expectGroupRewardPool: string;
-    expectMinimumGroupRewardShare: number;
-    hookData: string;
-    isSet: boolean;
-    licensingHook: string;
-    mintingFee: string;
-  };
-}
+import { 
+  IPEdge, 
+  IPLicenseTerms, 
+  DetailedIPLicenseTerms, 
+  IPRelationships, 
+  DisputeInfo, 
+  Dispute,
+  ComprehensiveLicensingInfo 
+} from './types';
 
-export interface DetailedIPLicenseTerms {
-  disabled: boolean;
-  id: string;
-  ipId: string;
-  licenseTemplate: {
-    blockNumber: string;
-    blockTime: string;
-    id: string;
-    metadataUri: string;
-    name: string;
-    url: string;
-  };
-  licenseTerms: {
-    blockNumber: string;
-    blockTime: string;
-    commercialAttribution: boolean;
-    commercialRevCeiling: string;
-    commercialRevShare: number;
-    commercialUse: boolean;
-    commercializerChecker: string;
-    commercializerCheckerData: string;
-    currency: string;
-    derivativesAllowed: boolean;
-    derivativesApproval: boolean;
-    derivativesAttribution: boolean;
-    derivativesReciprocal: boolean;
-    expiration: string;
-    id: string;
-    licenseTemplate: string;
-    mintingFee: string;
-    royaltyPolicy: string;
-    transferable: boolean;
-    uri: string;
-  };
-}
-
-export interface IPRelationships {
-  parents: IPEdge[];
-  children: IPEdge[];
-  allRelationships: IPEdge[];
-}
-
-export interface ComprehensiveLicensingInfo {
-  basicLicenses: IPEdge[];
-  licenseTerms: IPLicenseTerms[];
-  detailedTerms: DetailedIPLicenseTerms[];
-  licenseTemplates: string[];
-  licenseTermsIds: string[];
-  totalLicenses: number;
-  commercialUseAllowed: boolean;
-  derivativesAllowed: boolean;
-  totalRevShare: number;
-  mintingFees: string[];
-}
-
-export interface Dispute {
-  arbitrationPolicy: string;
-  blockNumber: number;
-  blockTimestamp: number;
-  counterEvidenceHash: string;
-  currentTag: string;
-  data: string;
-  deletedAt: number | null;
-  disputeTimestamp: number;
-  evidenceHash: string;
-  id: string;
-  initiator: string;
-  liveness: number;
-  logIndex: number;
-  status: string;
-  targetIpId: string;
-  targetTag: string;
-  transactionHash: string;
-  umaLink: string;
-}
-
-export interface DisputeInfo {
-  hasDisputes: boolean;
-  activeDisputes: Dispute[];
-  resolvedDisputes: Dispute[];
-  totalDisputes: number;
-  isInitiator: boolean;
-  isTarget: boolean;
-}
-
-
-
-// Get all edges for a specific IP asset (both as child and parent)
+// Function to get relationships (parents and children) for an IP asset
 export async function getIPRelationships(ipId: string): Promise<IPRelationships> {
   try {
     console.log('Fetching relationships for IP:', ipId);
-    
-    const response = await fetch(`/api/ip-edges?action=relationships&ipId=${encodeURIComponent(ipId)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+
+    const response = await fetch(`/api/ip-edges?action=relationships&ipId=${ipId}`);
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`API error: ${errorData.error || 'Unknown error'}`);
+      console.warn('IP edges API not available or no relationships found');
+      return {
+        parentEdges: [],
+        childEdges: [],
+        allRelationships: [],
+        hasParents: false,
+        hasChildren: false,
+        totalRelationships: 0,
+        ancestorCount: 0,
+        descendantCount: 0
+      };
     }
 
     const data = await response.json();
-    console.log('Parents found:', data.parents.length);
-    console.log('Children found:', data.children.length);
+    console.log('IP relationships data:', data);
+
+    const parentEdges: IPEdge[] = data.parents || [];
+    const childEdges: IPEdge[] = data.children || [];
+    const allRelationships: IPEdge[] = [...parentEdges, ...childEdges];
 
     return {
-      parents: data.parents,
-      children: data.children,
-      allRelationships: [...data.parents, ...data.children]
+      parentEdges,
+      childEdges,
+      allRelationships,
+      hasParents: parentEdges.length > 0,
+      hasChildren: childEdges.length > 0,
+      totalRelationships: allRelationships.length,
+      ancestorCount: parentEdges.length,
+      descendantCount: childEdges.length
     };
-    } catch (error) {
-      console.error('Error fetching IP relationships:', error);
-      return { parents: [], children: [], allRelationships: [] };
-    }
-  }
-
-// Get all relationships in the network (for family tree analysis)
-export async function getAllRelationships(): Promise<IPEdge[]> {
-  try {
-    console.log('Fetching all relationships...');
-
-    const response = await fetch('/api/ip-edges?action=all', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`API error: ${errorData.error || 'Unknown error'}`);
-    }
-
-    const allEdges = await response.json();
-    console.log(`Fetched ${allEdges.length} total relationships`);
-    
-    return allEdges;
   } catch (error) {
-    console.error('Error fetching all relationships:', error);
-    return [];
+    console.error('Error fetching IP relationships:', error);
+    return {
+      parentEdges: [],
+      childEdges: [],
+      allRelationships: [],
+      hasParents: false,
+      hasChildren: false,
+      totalRelationships: 0,
+      ancestorCount: 0,
+      descendantCount: 0
+    };
   }
 }
 
-// Test API connectivity
-export async function testConnection(): Promise<boolean> {
+// Get dispute information for an IP asset
+export async function getIPDisputes(ipId: string): Promise<DisputeInfo> {
   try {
-    const response = await fetch('/api/ip-edges?action=test', {
-      method: 'GET',
+    console.log('Fetching disputes for IP:', ipId);
+
+    const response = await fetch('/api/disputes', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({
+        options: {
+          where: { targetIpId: ipId },
+          pagination: { limit: 100 }
+        }
+      })
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Test connection successful:', data);
-      return data.success;
-    } else {
-      const errorData = await response.json();
-      console.error('Test connection failed:', errorData);
-      return false;
+    if (!response.ok) {
+      console.warn('Disputes API not available or no disputes found');
+      return {
+        hasDisputes: false,
+        activeDisputes: [],
+        resolvedDisputes: [],
+        totalDisputes: 0,
+        isInitiator: false,
+        isTarget: false
+      };
     }
+
+    const data = await response.json();
+    const disputes = data.data || [];
+
+    const activeDisputes = disputes.filter((dispute: Dispute) => 
+      dispute.status.toLowerCase() === 'active' || dispute.status.toLowerCase() === 'pending'
+    );
+    const resolvedDisputes = disputes.filter((dispute: Dispute) => 
+      dispute.status.toLowerCase() === 'resolved' || dispute.status.toLowerCase() === 'dismissed'
+    );
+
+    return {
+      hasDisputes: disputes.length > 0,
+      activeDisputes,
+      resolvedDisputes,
+      totalDisputes: disputes.length,
+      isInitiator: disputes.some((d: Dispute) => d.initiator === ipId),
+      isTarget: disputes.length > 0
+    };
   } catch (error) {
-    console.error('Test connection error:', error);
+    console.error('Error fetching disputes:', error);
+    return {
+      hasDisputes: false,
+      activeDisputes: [],
+      resolvedDisputes: [],
+      totalDisputes: 0,
+      isInitiator: false,
+      isTarget: false
+    };
+  }
+}
+
+// Get comprehensive licensing information
+export async function getComprehensiveLicensingInfo(ipId: string): Promise<ComprehensiveLicensingInfo> {
+  try {
+    // Get basic licensing relationships
+    const relationshipData = await getIPRelationships(ipId);
+    
+    // Get IP license terms
+    const ipLicenseResponse = await fetch(`/api/licenses/ip/terms/${ipId}`);
+    let ipLicenseTerms: IPLicenseTerms[] = [];
+    if (ipLicenseResponse.ok) {
+      const ipLicenseData = await ipLicenseResponse.json();
+      ipLicenseTerms = ipLicenseData.data || [];
+    }
+
+    // Get detailed license terms
+    const licenseTermsIds = [...new Set([
+      ...relationshipData.allRelationships.map(edge => edge.licenseTermsId),
+      ...ipLicenseTerms.map(term => term.licenseTermsId)
+    ].filter(Boolean))];
+
+    let detailedTerms: DetailedIPLicenseTerms[] = [];
+    if (licenseTermsIds.length > 0) {
+      const detailedResponse = await fetch('/api/detailed-ip-license-terms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ipIds: [ipId]
+        })
+      });
+      if (detailedResponse.ok) {
+        const detailedData = await detailedResponse.json();
+        detailedTerms = detailedData.data || [];
+      }
+    }
+
+    // Analyze licensing information
+    const commercialUseAllowed = detailedTerms.some(term => term.licenseTerms?.commercialUse);
+    const derivativesAllowed = detailedTerms.some(term => term.licenseTerms?.derivativesAllowed);
+    const totalRevShare = detailedTerms.reduce((sum, term) => sum + (term.licenseTerms?.commercialRevShare || 0), 0);
+    
+    const mintingFees = [
+      ...ipLicenseTerms.map(term => term.licensingConfig?.mintingFee).filter(Boolean),
+      ...detailedTerms.map(term => term.licenseTerms?.mintingFee).filter(Boolean)
+    ] as string[];
+
+    return {
+      basicLicenses: relationshipData.allRelationships,
+      licenseTerms: ipLicenseTerms,
+      detailedTerms,
+      licenseTemplates: [...new Set(relationshipData.allRelationships.map(edge => edge.licenseTemplate).filter(Boolean))],
+      licenseTermsIds,
+      totalLicenses: relationshipData.allRelationships.length + ipLicenseTerms.length,
+      commercialUseAllowed,
+      derivativesAllowed,
+      totalRevShare,
+      mintingFees
+    };
+  } catch (error) {
+    console.error('Error fetching comprehensive licensing info:', error);
+    return {
+      basicLicenses: [],
+      licenseTerms: [],
+      detailedTerms: [],
+      licenseTemplates: [],
+      licenseTermsIds: [],
+      totalLicenses: 0,
+      commercialUseAllowed: false,
+      derivativesAllowed: false,
+      totalRevShare: 0,
+      mintingFees: []
+    };
+  }
+}
+
+// Test API connection
+export async function testConnection(): Promise<boolean> {
+  try {
+    const response = await fetch('/api/ip-edges?action=test');
+    return response.ok;
+  } catch (error) {
+    console.error('API connection test failed:', error);
     return false;
   }
 }
 
-// Get licensing information for an IP asset
-export async function getLicensingInfo(ipId: string): Promise<{
-  licenses: IPEdge[];
-  licenseTemplates: string[];
-  licenseTerms: string[];
-}> {
-  try {
-    console.log('Fetching licensing info for IP:', ipId);
+// Legacy IPEdgesService class for backward compatibility
+export class IPEdgesService {
+  static async getIPRelationships(ipId: string) {
+    return getIPRelationships(ipId);
+  }
 
-    const response = await fetch(`/api/ip-edges?action=licensing&ipId=${encodeURIComponent(ipId)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`API error: ${errorData.error || 'Unknown error'}`);
+  static async getAllRelationships(): Promise<IPEdge[]> {
+    try {
+      const response = await fetch('/api/ip-edges?action=all');
+      if (!response.ok) return [];
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching all relationships:', error);
+      return [];
     }
+  }
 
-    const data = await response.json();
-    console.log('Licensing info fetched:', {
-      licensesCount: data.licenses.length,
-      templatesCount: data.licenseTemplates.length,
-      termsCount: data.licenseTerms.length
-    });
-
-    return {
-      licenses: data.licenses,
-      licenseTemplates: data.licenseTemplates,
-      licenseTerms: data.licenseTerms
-    };
-  } catch (error) {
-    console.error('Error fetching licensing info:', error);
-    return { licenses: [], licenseTemplates: [], licenseTerms: [] };
+  static async getLicensingInfo(ipId: string) {
+    try {
+      const response = await fetch(`/api/ip-edges?action=licensing&ipId=${ipId}`);
+      if (!response.ok) {
+        return { licenses: [], licenseTemplates: [], licenseTerms: [] };
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching licensing info:', error);
+      return { licenses: [], licenseTemplates: [], licenseTerms: [] };
+    }
   }
 }

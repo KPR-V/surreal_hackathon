@@ -1,8 +1,10 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
+import { DisputeInfo } from './types';
 import { FamilyTreeVisualization } from './familyTreeVisualization';
 import { LicensingInfo } from './licensingInfo';
 import { DisputeInfoComponent } from './disputeInfo';
-import { DisputeInfo } from './ipEdgesService';
 
 interface IPAsset {
   id: string;
@@ -80,7 +82,6 @@ interface IPDetailsModalProps {
   onClose: () => void;
   asset: IPAsset;
 }
-
 
 const StoryAPIService = {
   async getFullIPDetails(ipId: string): Promise<IPAssetDetails | null> {
@@ -173,6 +174,14 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
     navigator.clipboard.writeText(text);
   };
 
+  const detailTabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'family', label: 'Family' },
+    { id: 'licensing', label: 'Licensing' },
+    { id: 'disputes', label: 'Disputes' },
+    { id: 'technical', label: 'Technical' }
+  ];
+
   if (!isOpen) return null;
 
   return (
@@ -223,13 +232,7 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
           {/* Tab Navigation */}
           <div className="px-6 pt-4 flex-shrink-0">
             <div className="flex space-x-1 bg-zinc-800/30 rounded-lg p-1">
-              {[
-                { id: 'overview', label: 'Overview' },
-                { id: 'family', label: 'Family' },
-                { id: 'licensing', label: 'Licensing' },
-                { id: 'disputes', label: 'Disputes' },
-                { id: 'technical', label: 'Technical' }
-              ].map((tab) => (
+              {detailTabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveDetailTab(tab.id)}

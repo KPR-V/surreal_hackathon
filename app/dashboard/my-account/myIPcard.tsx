@@ -1,6 +1,9 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
+import { getIPRelationships, getIPDisputes } from './ipEdgesService';
+import { DisputeInfo } from './types';
 import { IPDetailsModal } from './ipDetailsModal';
-import { getIPRelationships, DisputeInfo, getIPDisputes } from './ipEdgesService';
 
 interface IPAsset {
   id: string;
