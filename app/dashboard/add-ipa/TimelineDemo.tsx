@@ -39,7 +39,7 @@ interface TimelineDemoProps {
   onBack: () => void;
 }
 
-export async function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
+export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [batchFormData, setBatchFormData] = useState<Record<string, any>[]>([]);
