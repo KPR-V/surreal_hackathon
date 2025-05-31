@@ -1,4 +1,4 @@
-import { useStoryClient } from "../main_functions/story-network";
+import { StoryClient } from "@story-protocol/core-sdk";
 import { parseEther } from "viem";
 
 export const raiseDispute = async (
@@ -6,11 +6,10 @@ export const raiseDispute = async (
   evidence_cid: string,
   targetTag: string,
   bond: string,
-  liveness_seconds: number
+  liveness_seconds: number,
+  client: StoryClient
 ) => {
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const validTags: string[] = [
     "IMPROPER_REGISTRATION",
     "IMPROPER_USAGE",
@@ -44,10 +43,8 @@ export const raiseDispute = async (
   }
 };
 
-export const cancelDispute = async (disputeId: number) => {
+export const cancelDispute = async (disputeId: number,client: StoryClient) => {
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const response = await client.dispute.cancelDispute({
     disputeId: disputeId,
     txOptions: { waitForTransaction: true },
@@ -60,10 +57,8 @@ export const cancelDispute = async (disputeId: number) => {
   }
 };
 
-export const resolveDispute = async (disputeId: number) => {
+export const resolveDispute = async (disputeId: number,client: StoryClient) => {
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const response = await client.dispute.resolveDispute({
     disputeId: disputeId,
     txOptions: { waitForTransaction: true },
@@ -79,11 +74,10 @@ export const resolveDispute = async (disputeId: number) => {
 export const disputeAssertion = async (
   ipId: string,
   disputeId: number,
-  counterEvidenceCID: string
+  counterEvidenceCID: string,
+  client: StoryClient
 ) => {
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const assertionId = await client.dispute.disputeIdToAssertionId(disputeId);
 
   const result = await client.dispute.disputeAssertion({

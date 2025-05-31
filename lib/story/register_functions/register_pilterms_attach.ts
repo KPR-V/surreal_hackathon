@@ -1,13 +1,12 @@
-import { LicenseTerms } from "@story-protocol/core-sdk";
-import { useStoryClient } from "../main_functions/story-network";
+import { LicenseTerms, StoryClient } from "@story-protocol/core-sdk";
+
 
 const register_pilterms_attach = async (
   ipid: string,
-  licensetermsdata: LicenseTerms
+  licensetermsdata: LicenseTerms,
+  client: StoryClient
 ) => {
   try {
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();  
     const response = await client.ipAsset.registerPilTermsAndAttach({
       ipId: ipid.startsWith("0x") ? ipid as `0x${string}` : `0x${ipid}` as `0x${string}`,
       licenseTermsData: [{ terms: licensetermsdata }],

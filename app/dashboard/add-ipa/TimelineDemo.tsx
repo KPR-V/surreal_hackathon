@@ -4,16 +4,19 @@ import { Timeline } from "../../../components/ui/timeline";
 import { SummaryModal } from "../../../components/ui/SummaryModal";
 import { MultiStepLoader } from "../../../components/ui/multi-step-loader";
 import { PILModal } from "../../../components/ui/PILModal";
-
-// Import backend functions - you'll need to add these imports
-// import { register, batchRegister } from "../../../main_functions/register";
-// import { register_pilterms } from "../../../main_functions/register_pilterms";
-// import { mintandregisterip } from "../../../main_functions/mintandregisterip";
-// import { mint_register_pilterms } from "../../../main_functions/mint_register_pilterms";
-// import { register_derivative_ip, batch_register_derivative_ip } from "../../../main_functions/register_derivative_ip";
-// import { mint_registerIp_makederivative, batch_mint_registerIp_makederivative } from "../../../main_functions/mint_registerIp_makederivative";
-// import { register_derivative } from "../../../main_functions/register_derivative";
-//import { mint_registerIp_makederivative_licensetokens } from "../../../main_functions/mint_registerIp_makederivative_licensetokens";
+import { batch_mint_registerIp_makederivative, mint_registerIp_makederivative } from "../../../lib/story/mint_functions/mint_registerIp_makederivative";
+import { batch_register_derivative_ip, register_derivative_ip } from "../../../lib/story/register_functions/registerderivativeip";
+import { batchRegister, register } from "../../../lib/story/register_functions/register";
+import  register_derivative  from "../../../lib/story/register_functions/register_derivative";
+import { register_pilterms } from "../../../lib/story/register_functions/register_IP_attach_pilterms";
+import { mintandregisterip } from "../../../lib/story/mint_functions/mint_register";
+import { mint_register_pilterms } from "../../../lib/story/mint_functions/mint_register_pilterms";
+import mint_registerIp_makederivative_licensetokens from "../../../lib/story/mint_functions/mint_registerIp_makederivative_licensetokens";
+import register_ip_make_derivative_licensetoken from "../../../lib/story/register_functions/register_ip_make_derivative_licensetoken";
+import {attachpilterms} from "../../../lib/story/license_functions/attachpilterms";
+import { createnewpilterms } from "../../../lib/story/license_functions/create_new_pilterms";
+import register_derivative_License_tokens from "../../../lib/story/register_functions/register_derivative_License_tokens";
+import { useStoryClient } from "../../../lib/story/main_functions/story-network";
 
 interface Question {
   id: string;
@@ -36,7 +39,7 @@ interface TimelineDemoProps {
   onBack: () => void;
 }
 
-export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
+export async function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [batchFormData, setBatchFormData] = useState<Record<string, any>[]>([]);
@@ -45,10 +48,46 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
   const [isCreateIPEnabled, setIsCreateIPEnabled] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const { getStoryClient } = useStoryClient();
   // PIL Modal states
   const [isPILModalOpen, setIsPILModalOpen] = useState(false);
   const [pilTerms, setPilTerms] = useState<any>(null);
+
+const register_to_yakoa = async (tokenId: string, creatorId: string, name: string, mediaId: string,blockNumber: number,transaction_hash: string ,url: string, media_hash: string,  trust_reason?: {type: string, platform_name: string},  timestamp?: string, licenseParents?: {license_id: string, token_id: string}[], authorizations?: {authorization_id: string, token_id: string}[]) => {
+  try{
+  const response = await fetch('/api/yakoa/register-token', {
+    method: 'POST',
+    body: JSON.stringify({
+      network: "story-aeneid",
+      tokenId: tokenId, // ipid 
+      creatorId: creatorId, // creator da address wallet address ya simillar thing 
+      metadata: {name: name},
+      media: {
+        media_id: mediaId, // media name rakh de ya kuch vi like jo isdi identification ho 
+        url: url,
+        hash: media_hash,
+        trust_reason: trust_reason || {type: "", platform_name: ""},
+      },
+      registrationTx: {
+        hash: transaction_hash,
+        block_number: blockNumber,
+        timestamp: timestamp || "",
+      },
+      licenseParents: licenseParents || [],
+      authorizations: authorizations || [],
+    }),
+  });
+  const data = await response.json();
+  console.log("Response from yakoa:", data);
+  return data;
+  } catch (error) {
+    console.error("Error registering to yakoa:", error);
+  }
+};
+
+
+
+
 
   // Loading states for MultiStepLoader
   const loadingStates = [
@@ -191,9 +230,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
 
       // Call the backend function
-      // const result = await mint_registerIp_makederivative(spgnftcontract, parentIpIds, licenseTermsIds, ipMetadata, nftMetadata);
-      // console.log("Mint and register derivative IP successful:", result);
-      // return result;
+      const client = await getStoryClient();
+          const result = await mint_registerIp_makederivative(spgnftcontract, parentIpIds, licenseTermsIds, client,ipMetadata, nftMetadata);
+          console.log("Mint and register derivative IP successful:", result);
+          return result;
     } catch (error) {
       console.error("Mint and register derivative IP failed:", error);
       throw error;
@@ -243,9 +283,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       });
 
       // Call the backend function
-      // const result = await batch_mint_registerIp_makederivative(items);
-      // console.log("Batch mint and register derivative IP successful:", result);
-      // return result;
+      const client = await getStoryClient();
+        const result = await batch_mint_registerIp_makederivative(items,client);
+        console.log("Batch mint and register derivative IP successful:", result);
+        return result;
     } catch (error) {
       console.error("Batch mint and register derivative IP failed:", error);
       throw error;
@@ -294,9 +335,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
 
       // Call the backend function
-      // const result = await register_derivative_ip(nftContract, tokenId, parentIpIds, licenseTermsIds, ipMetadata, nftMetadata);
-      // console.log("Register derivative IP successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await register_derivative_ip(nftContract, client, tokenId, parentIpIds, licenseTermsIds,ipMetadata, nftMetadata);
+      console.log("Register derivative IP successful:", result);
+      return result;
     } catch (error) {
       console.error("Register derivative IP failed:", error);
       throw error;
@@ -328,9 +370,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       });
 
       // Call the backend function
-      // const result = await batch_register_derivative_ip(childIpIds, parentIpIdsArray, licenseTermsIdsArray);
-      // console.log("Batch register derivative IP successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await batch_register_derivative_ip(childIpIds, client, parentIpIdsArray, licenseTermsIdsArray);
+      console.log("Batch register derivative IP successful:", result);
+      return result;
     } catch (error) {
       console.error("Batch register derivative IP failed:", error);
       throw error;
@@ -354,9 +397,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
 
       // Call the backend function
-      // const result = await register_derivative(childIpId, parentIpIds, licenseTermsIds);
-      // console.log("Register derivative successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await register_derivative(childIpId, parentIpIds, licenseTermsIds,client);
+      console.log("Register derivative successful:", result);
+      return result;
     } catch (error) {
       console.error("Register derivative failed:", error);
       throw error;
@@ -380,9 +424,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       };
 
       // Call the backend function
-      // const result = await register(nftContract, tokenId, ipMetadata);
-      // console.log("Register successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await register(nftContract,tokenId,client, ipMetadata);
+      console.log("Register successful:", result);
+      return result;
     } catch (error) {
       console.error("Register failed:", error);
       throw error;
@@ -414,6 +459,9 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
         derivativesApproval: data.pilTerms.derivativesApproval || false,
         derivativesReciprocal: data.pilTerms.derivativesReciprocal || false,
         currency: data.pilTerms.currency || "0x0000000000000000000000000000000000000000",
+        defaultMintingFee: BigInt(data.pilTerms.defaultMintingFee) || 0n,
+        derivativeRevCeiling: BigInt(data.pilTerms.derivativeRevCeiling) || 0n,
+        uri: data.pilTerms.uri || "",
       };
 
       // Build IP metadata
@@ -425,9 +473,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       };
 
       // Call the backend function
-      // const result = await register_pilterms(nftContract, tokenId, terms, ipMetadata);
-      // console.log("Register with PIL successful:", result);
-      // return result;
+      const client = await getStoryClient();
+        const result = await register_pilterms(nftContract, tokenId, terms, client,ipMetadata);
+        console.log("Register with PIL successful:", result);
+        return result;
     } catch (error) {
       console.error("Register with PIL failed:", error);
       throw error;
@@ -451,9 +500,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }));
 
       // Call the backend function
-      // const result = await batchRegister(batchItems);
-      // console.log("Batch register successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await batchRegister(batchItems,client);
+      console.log("Batch register successful:", result);
+      return result;
     } catch (error) {
       console.error("Batch register failed:", error);
       throw error;
@@ -518,9 +568,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
       
       // Call the backend function
-      // const result = await mintandregisterip(ipMetadata, nftMetadata, spgnftcontract);
-      // console.log("Mint and register successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await mintandregisterip(client,ipMetadata, nftMetadata, spgnftcontract);
+      console.log("Mint and register successful:", result);
+      return result;
     } catch (error) {
       console.error("Mint and register failed:", error);
       throw error;
@@ -548,6 +599,9 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
         derivativesApproval: data.pilTerms.derivativesApproval || false,
         derivativesReciprocal: data.pilTerms.derivativesReciprocal || false,
         currency: data.pilTerms.currency || "0x0000000000000000000000000000000000000000",
+        defaultMintingFee: BigInt(data.pilTerms.defaultMintingFee) || 0n,
+        derivativeRevCeiling: BigInt(data.pilTerms.derivativeRevCeiling) || 0n,
+        uri: data.pilTerms.uri || "0x",
       };
 
       const spgnftcontract = data.spg_nft_contract || undefined;
@@ -577,9 +631,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
       
       // Call the backend function
-      // const result = await mint_register_pilterms(terms, spgnftcontract, ipMetadata, nftMetadata);
-      // console.log("Mint register PIL successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await mint_register_pilterms(terms, client, spgnftcontract, ipMetadata, nftMetadata);
+      console.log("Mint register PIL successful:", result);
+      return result;
     } catch (error) {
       console.error("Mint register PIL failed:", error);
       throw error;
@@ -641,15 +696,17 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
 
       // Call the backend function
-      // const result = await mint_registerIp_makederivative_licensetokens(
-      //   spgnftcontract,
-      //   licenseTokenIds,
-      //   maxRts,
-      //   ipMetadata,
-      //   nftMetadata
-      // );
-      // console.log("Mint and register derivative IP with license tokens successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await mint_registerIp_makederivative_licensetokens(
+        spgnftcontract,
+        licenseTokenIds,
+        maxRts,
+        client,
+        ipMetadata,
+        nftMetadata
+      );
+      console.log("Mint and register derivative IP with license tokens successful:", result);
+      return result;
     } catch (error) {
       console.error("Mint and register derivative IP with license tokens failed:", error);
       throw error;
@@ -701,16 +758,18 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
 
       // Call the backend function
-      // const result = await register_ip_make_derivative_licensetoken(
-      //   nftContract,
-      //   tokenId,
-      //   licenseTokenIds,
-      //   maxRts,
-      //   ipMetadata,
-      //   nftMetadata
-      // );
-      // console.log("Register IP and make derivative with license tokens successful:", result);
-      // return result;
+      const client = await getStoryClient();
+        const result = await register_ip_make_derivative_licensetoken(
+          nftContract,
+          tokenId,
+          licenseTokenIds,
+          maxRts,
+          client,
+          ipMetadata,
+          nftMetadata
+        );
+        console.log("Register IP and make derivative with license tokens successful:", result);
+        return result;
     } catch (error) {
       console.error("Register IP and make derivative with license tokens failed:", error);
       throw error;
@@ -733,9 +792,10 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
         }
         
         // Call the attachpilterms function
-        // const result = await attachpilterms(licenseTermsId, ipId);
-        // console.log("Attach PIL terms successful:", result);
-        // return result;
+        const client = await getStoryClient();
+        const result = await attachpilterms(licenseTermsId, ipId, client);
+        console.log("Attach PIL terms successful:", result);
+        return result;
         
       } else if (pilOption === "I want to create new PIL terms and attach") {
         // Option 2: Create new PIL terms and attach
@@ -762,24 +822,26 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
         const usewip = pilTerms.currency === "0x0000000000000000000000000000000000000000"; // Use WIP if zero address
         
         // Call the createnewpilterms function
-        // const result = await createnewpilterms(
-        //   transferable,
-        //   commercialUse,
-        //   commercialAttribution,
-        //   commercialRevShare,
-        //   derivativesAllowed,
-        //   derivativesAttribution,
-        //   derivativesApproval,
-        //   derivativesReciprocal,
-        //   royaltyPolicy,
-        //   defaultMintingFee,
-        //   expiration,
-        //   commercialRevCeiling,
-        //   derivativeRevCeiling,
-        //   usewip
-        // );
-        // console.log("Create and attach PIL terms successful:", result);
-        // return result;
+        const client = await getStoryClient();
+          const result = await createnewpilterms(
+            transferable,
+            client,
+            commercialUse,
+            commercialAttribution,
+            commercialRevShare,
+            derivativesAllowed,
+            derivativesAttribution,
+            derivativesApproval,
+            derivativesReciprocal,
+            royaltyPolicy,
+            defaultMintingFee,
+            expiration,
+            commercialRevCeiling,
+            derivativeRevCeiling,
+            usewip
+          );
+          console.log("Create and attach PIL terms successful:", result);
+          return result;
       }
       
     } catch (error) {
@@ -808,13 +870,15 @@ export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
       }
 
       // Call the backend function
-      // const result = await register_derivative_License_tokens(
-      //   childIpId,
-      //   licenseTokenIds,
-      //   maxRts
-      // );
-      // console.log("Register derivative with license tokens successful:", result);
-      // return result;
+      const client = await getStoryClient();
+      const result = await register_derivative_License_tokens(
+        childIpId,
+        licenseTokenIds,
+        maxRts,
+        client
+      );
+      console.log("Register derivative with license tokens successful:", result);
+      return result;
     } catch (error) {
       console.error("Register derivative with license tokens failed:", error);
       throw error;

@@ -1,12 +1,13 @@
-import { useStoryClient } from "../main_functions/story-network";
+
 import ipcid_nftcid from "../main_functions/ipcid_nftcid";
-import { IpMetadata } from "@story-protocol/core-sdk";
+import { IpMetadata, StoryClient } from "@story-protocol/core-sdk";
 
 
 
 
 export const register_derivative_ip = async (
   nftContract: string,
+  client: StoryClient,
   tokenId: string | number | bigint,
   parentIpIds: string[],
   licenseTermsIds: string[] | bigint[] | number[],
@@ -14,8 +15,6 @@ export const register_derivative_ip = async (
   nftmetadata?:any
 ) => {
     try {
-      const { getStoryClient } = useStoryClient();
-      const client = await getStoryClient();
         const {ipcid,ipHash,nftcid,nftHash} = await ipcid_nftcid(ipmetadata,nftmetadata);
   const response = await client.ipAsset.registerDerivativeIp({
   nftContract: nftContract.startsWith("0x") ? nftContract as `0x${string}` : `0x${nftContract}` as `0x${string}`, 
@@ -51,6 +50,7 @@ return {
 
 export const batch_register_derivative_ip = async (
     childIpIds: string[],
+    client: StoryClient,
     parentIpIdsArray: string[][],
     licenseTermsIdsArray: (string[] | bigint[] | number[])[],
     maxMintingFees?: (bigint | string | number)[],
@@ -59,8 +59,6 @@ export const batch_register_derivative_ip = async (
     licenseTemplates?: string[],
   ) => {
     try {
-      const { getStoryClient } = useStoryClient();
-      const client = await getStoryClient();
       const args= childIpIds.map((childIpId, index) => ({
         childIpId: childIpId.startsWith("0x") ? childIpId as `0x${string}` : `0x${childIpId}` as `0x${string}`,
         parentIpIds: parentIpIdsArray[index].map((id) => id.startsWith("0x") ? id as `0x${string}` : `0x${id}` as `0x${string}`),

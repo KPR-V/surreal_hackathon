@@ -1,12 +1,10 @@
-import { WIP_TOKEN_ADDRESS } from "@story-protocol/core-sdk";
+import { StoryClient, WIP_TOKEN_ADDRESS } from "@story-protocol/core-sdk";
 import { useStoryClient } from "../main_functions/story-network";
 const MERC20_TOKEN_ADDRESS = "0xF2104833d386a2734a4eB3B8ad6FC6812F29E38E"
 
-export const claim_revenue_myip = async (ipId: string, useWipToken: boolean) => {
+export const claim_revenue_myip = async (ipId: string, useWipToken: boolean , client: StoryClient) => {
   const tokenAddress = useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const claimRevenue = await client.royalty.claimAllRevenue({
     ancestorIpId: ipId.startsWith("0x") ? ipId as `0x${string}` : `0x${ipId}` as `0x${string}`,
     claimer: ipId.startsWith("0x") ? ipId as `0x${string}` : `0x${ipId}` as `0x${string}`,
@@ -31,11 +29,9 @@ export const claim_revenue_myip = async (ipId: string, useWipToken: boolean) => 
 
 
 
-export const claim_revenue_from_childip = async (ipId: string, childIpId: string, useWipToken: boolean , royaltyPolicy: string , autoUnwrapIpTokens: boolean) => {
+export const claim_revenue_from_childip = async (ipId: string, childIpId: string, useWipToken: boolean , royaltyPolicy: string , autoUnwrapIpTokens: boolean, client: StoryClient) => {
   const tokenAddress = useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const claimRevenue = await client.royalty.claimAllRevenue({
     ancestorIpId: ipId.startsWith("0x") ? ipId as `0x${string}` : `0x${ipId}` as `0x${string}`,
     claimer: ipId.startsWith("0x") ? ipId as `0x${string}` : `0x${ipId}` as `0x${string}`,
@@ -62,11 +58,10 @@ export const claim_revenue_from_childip = async (ipId: string, childIpId: string
 export const claimable_revenue = async (
   royaltyVaultIpId: string, //same as ipId
   claimer: string,
-  useWipToken: boolean
+  useWipToken: boolean,
+  client: StoryClient
 ) => {
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const formattedVaultId = royaltyVaultIpId.startsWith("0x")
     ? (royaltyVaultIpId as `0x${string}`)
     : (`0x${royaltyVaultIpId}` as `0x${string}`);
@@ -95,7 +90,8 @@ export const batch_claim_all_revenue = async (
     childIpIds: string[];
     royaltyPolicies: string[];
     useWipToken: boolean;
-  }[]
+  }[],
+  client: StoryClient
 ) => {
   
   const formatted = requests.map((req) => ({
@@ -110,8 +106,6 @@ export const batch_claim_all_revenue = async (
     currencyTokens: [(req.useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS) as `0x${string}`],
   }));
   try{
-    const { getStoryClient } = useStoryClient();
-  const client = await getStoryClient();
   const response = await client.royalty.batchClaimAllRevenue({
     ancestorIps: formatted,
     claimOptions:{
@@ -133,14 +127,12 @@ export const batch_claim_all_revenue = async (
 };
 
 // Wrapper for getRoyaltyVaultAddress: retrieves vault address for an IP asset
-export const get_royalty_vault_address = async (ipId: string) => {
+export const get_royalty_vault_address = async (ipId: string, client: StoryClient) => {
   
   const formattedIpId = ipId.startsWith("0x")
     ? (ipId as `0x${string}`)
     : (`0x${ipId}` as `0x${string}`);
     try{
-      const { getStoryClient } = useStoryClient();
-      const client = await getStoryClient();
   const address = await client.royalty.getRoyaltyVaultAddress(formattedIpId);
   return address;
   }catch(error){
@@ -153,7 +145,8 @@ export const transfer_to_vault = async (
   royaltyPolicy: string,
   ipId: string,
   ancestorIpId: string,
-  useWipToken: boolean
+  useWipToken: boolean,
+  client: StoryClient
 ) => {
   const formattedPolicy = royaltyPolicy.startsWith("0x")
     ? (royaltyPolicy as `0x${string}`)
@@ -166,8 +159,6 @@ export const transfer_to_vault = async (
     : (`0x${ancestorIpId}` as `0x${string}`);
   const formattedToken = useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
   try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const response = await client.royalty.transferToVault({
     royaltyPolicy: formattedPolicy,
     ipId: formattedIpId,

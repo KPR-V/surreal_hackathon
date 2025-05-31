@@ -1,10 +1,11 @@
 import ipcid_nftcid from "../main_functions/ipcid_nftcid";
-import { IpMetadata } from "@story-protocol/core-sdk";
-import { useStoryClient } from "../main_functions/story-network";
+import { IpMetadata, StoryClient } from "@story-protocol/core-sdk";
+
 const mint_registerIp_makederivative_licensetokens = async (
   spgnftcontract: string,
   licenseTokenIds: string[] | bigint[] | number[],
   maxRts: number | string,
+  client: StoryClient,
   ipMetadata?: IpMetadata,
   nftMetadata?:any
 ) => {
@@ -13,8 +14,6 @@ const mint_registerIp_makederivative_licensetokens = async (
       ipMetadata,
       nftMetadata
     );
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const response =
       await client.ipAsset.mintAndRegisterIpAndMakeDerivativeWithLicenseTokens({
         spgNftContract: spgnftcontract.startsWith("0x") ? spgnftcontract as `0x${string}` : `0x${spgnftcontract}` as `0x${string}`,

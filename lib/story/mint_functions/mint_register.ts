@@ -1,17 +1,17 @@
-import { IpMetadata } from "@story-protocol/core-sdk";
+import { IpMetadata, StoryClient } from "@story-protocol/core-sdk";
 import ipcid_nftcid from "../main_functions/ipcid_nftcid";
-import { useStoryClient } from "../main_functions/story-network";
+
 
 
 export const mintandregisterip = async (
+  client: StoryClient,
   ipMetadata?: IpMetadata,
   nftMetadata?:any,
-  spgnftcontract?: string
+  spgnftcontract?: string,
+ 
 ) => {
   const { ipcid, ipHash, nftcid, nftHash } = await ipcid_nftcid(ipMetadata, nftMetadata);
   try { 
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const response = await client.ipAsset.mintAndRegisterIp({
     spgNftContract: (spgnftcontract? spgnftcontract.startsWith("0x")? spgnftcontract as `0x${string}` : `0x${spgnftcontract}` as `0x${string}`: "0xc32A8a0FF3beDDDa58393d022aF433e78739FAbc") as `0x${string}`,
     ipMetadata:ipMetadata && nftMetadata

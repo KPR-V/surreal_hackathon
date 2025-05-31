@@ -1,17 +1,16 @@
-import { IpMetadata, LicenseTerms } from "@story-protocol/core-sdk";
+import { IpMetadata, LicenseTerms, StoryClient } from "@story-protocol/core-sdk";
 import ipcid_nftcid from "../main_functions/ipcid_nftcid";
-import { useStoryClient } from "../main_functions/story-network";
+
 
 export const mint_register_pilterms = async (
   terms: LicenseTerms,
+  client: StoryClient,
   spgnftcontract?: string,
   ipMetadata?: IpMetadata,
   nftMetadata?:any
 ) => {
   const { ipcid, ipHash, nftcid, nftHash } = await ipcid_nftcid(ipMetadata,nftMetadata);
   try {
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const response = await client.ipAsset.mintAndRegisterIpAssetWithPilTerms({
       spgNftContract: (spgnftcontract? spgnftcontract.startsWith("0x")? spgnftcontract as `0x${string}` : `0x${spgnftcontract}` as `0x${string}`: "0xc32A8a0FF3beDDDa58393d022aF433e78739FAbc") as `0x${string}`,
     licenseTermsData: [{ terms: terms }],
@@ -39,9 +38,9 @@ export const batch_mint_register_pilterms = async (items: {
   terms: LicenseTerms;
   ipMetadata?: IpMetadata;
   nftMetadata?: any;
-}[]) => {
-  const { getStoryClient } = useStoryClient();
-  const client = await getStoryClient();
+}[],
+client: StoryClient
+) => {
   const args = await Promise.all(
     items.map(async (item) => {
       const { ipcid, ipHash, nftcid, nftHash } = await ipcid_nftcid(

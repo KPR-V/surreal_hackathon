@@ -1,18 +1,17 @@
 
 import ipcid_nftcid from "../main_functions/ipcid_nftcid";
-import { IpMetadata } from "@story-protocol/core-sdk";
-import { useStoryClient } from "../main_functions/story-network";
+import { IpMetadata, StoryClient } from "@story-protocol/core-sdk";
+
 const register_ip_make_derivative_licensetoken = async (
   nftContract: string,
   tokenId: string | number | bigint,
   licenseTokenIds: string[] | bigint[] | number[],
   maxRts: number | string,
+  client: StoryClient,
   ipmetadata?: IpMetadata,
   nftmetadata?:any
 ) => {
   try {
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const { ipcid, nftcid, ipHash, nftHash } = await ipcid_nftcid(ipmetadata,nftmetadata);
     const response = await client.ipAsset.registerIpAndMakeDerivativeWithLicenseTokens({
         nftContract: nftContract.startsWith("0x") ? nftContract as `0x${string}` : `0x${nftContract}` as `0x${string}`, 

@@ -1,10 +1,8 @@
-import { useStoryClient } from "../main_functions/story-network";
+import { StoryClient } from "@story-protocol/core-sdk";
 
 
-export const mint_licensetoken = async (licenseTermsId: string | number | bigint ,licensoripid:string,receiver:string,amount?: string | number | bigint ,maxMintingFee?: string | number | bigint ,maxRevenueShare?: string | number  )=> {
+export const mint_licensetoken = async (licenseTermsId: string | number | bigint ,licensoripid:string,receiver:string,client: StoryClient,amount?: string | number | bigint ,maxMintingFee?: string | number | bigint ,maxRevenueShare?: string | number)=> {
   try {
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const response = await client.license.mintLicenseTokens({
     licenseTermsId: licenseTermsId ,
     licensorIpId: (licensoripid.startsWith("0x") ? licensoripid : `0x${licensoripid}`) as `0x${string}`,

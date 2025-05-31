@@ -1,10 +1,9 @@
 import { zeroAddress,Address } from "viem";
-import { useStoryClient } from "../main_functions/story-network";
 
- export const createSpgNftCollection = async (name?:string, symbol?:string,mintFeeRecipient?:Address ,isPublicMinting?:boolean,mintOpen?:boolean) => {
+import { StoryClient } from "@story-protocol/core-sdk";
+
+ export const createSpgNftCollection = async (client: StoryClient ,name?:string, symbol?:string,mintFeeRecipient?:Address ,isPublicMinting?:boolean,mintOpen?:boolean) => {
  try {
-  const { getStoryClient } = useStoryClient();
-  const client = await getStoryClient();
   const newCollection = await client.nftClient.createNFTCollection({
     name: name || "My Custom Collection",
     symbol: symbol || "MCC",

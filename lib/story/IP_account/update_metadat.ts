@@ -1,9 +1,7 @@
-import { useStoryClient } from "../main_functions/story-network";
+import { StoryClient } from "@story-protocol/core-sdk";
 
-export const update_metadata = async (ipId: string, metadataURI: string, metadataHash: string) => {
+export const update_metadata = async (ipId: string, metadataURI: string, metadataHash: string,client: StoryClient) => {
     try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const txHash = await client.ipAccount.setIpMetadata({
         ipId: ipId.startsWith("0x") ? ipId as `0x${string}` : `0x${ipId}` as `0x${string}`,
         metadataURI: metadataURI,

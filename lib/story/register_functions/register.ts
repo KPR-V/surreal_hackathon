@@ -1,7 +1,6 @@
 
 import ipcid_nftcid from "../main_functions/ipcid_nftcid";
-import {  IpMetadata } from "@story-protocol/core-sdk";
-import { useStoryClient } from "../main_functions/story-network";
+import {  IpMetadata, StoryClient } from "@story-protocol/core-sdk";
 
 interface BatchRegisterItem {
   nftContract: string;
@@ -10,11 +9,9 @@ interface BatchRegisterItem {
   nftMetadata?: any;
 }
 
-export const register = async (nftContract: string,tokenId: string | number | bigint,ipMetadata?: IpMetadata,nftMetadata?:any) => {
+export const register = async (nftContract: string,tokenId: string | number | bigint, client: StoryClient, ipMetadata?: IpMetadata,nftMetadata?:any) => {
   const { ipcid, ipHash, nftcid, nftHash } = await ipcid_nftcid(ipMetadata, nftMetadata);
   try {
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const response = await client.ipAsset.register({
       nftContract: (nftContract.startsWith("0x") ? nftContract as `0x${string}` : `0x${nftContract}` as `0x${string}`),
       tokenId: tokenId,
@@ -41,7 +38,7 @@ export const register = async (nftContract: string,tokenId: string | number | bi
 
 
 
-export const batchRegister = async (items: BatchRegisterItem[]) => {
+export const batchRegister = async (items: BatchRegisterItem[], client: StoryClient) => {
   const args = await Promise.all(
     items.map(async (item) => {
       const { ipcid, ipHash, nftcid, nftHash } = await ipcid_nftcid(item.ipMetadata,item.nftMetadata);
@@ -59,8 +56,7 @@ export const batchRegister = async (items: BatchRegisterItem[]) => {
       };
     })
   );
-  const { getStoryClient } = useStoryClient();
-  const client = await getStoryClient();try {
+  try {
     const response = await client.ipAsset.batchRegister({
       args,
       txOptions: { waitForTransaction: true },

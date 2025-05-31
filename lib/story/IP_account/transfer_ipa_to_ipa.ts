@@ -1,14 +1,12 @@
-import { useStoryClient } from "../main_functions/story-network";
+
 import { parseEther } from "viem";
-import { WIP_TOKEN_ADDRESS } from "@story-protocol/core-sdk";
+import { StoryClient, WIP_TOKEN_ADDRESS } from "@story-protocol/core-sdk";
 const MERC20_TOKEN_ADDRESS = "0xF2104833d386a2734a4eB3B8ad6FC6812F29E38E";
 
 
 
-export const transfer_ipaccount_to_ipaccount = async (amount: string,ipid: string,receiver_address: string,useWipToken: boolean) => {
+export const transfer_ipaccount_to_ipaccount = async (amount: string,ipid: string,receiver_address: string,useWipToken: boolean,client: StoryClient) => {
     try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const response = await client.ipAccount.transferErc20({
       ipId: ipid.startsWith("0x")? (ipid as `0x${string}`): (`0x${ipid}` as `0x${string}`),
       tokens: [

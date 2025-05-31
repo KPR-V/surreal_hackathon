@@ -1,9 +1,7 @@
-import { useStoryClient } from "../main_functions/story-network";
+import { StoryClient } from "@story-protocol/core-sdk";
 import { parseEther } from "viem";
-export const transfer_royalty_token = async (amount: string,royaltl_contract_address: string,ipid: string,receiver_address: string) => {
+export const transfer_royalty_token = async (amount: string,royaltl_contract_address: string,ipid: string,receiver_address: string,client: StoryClient) => {
     try{
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
     const response = await client.ipAccount.transferErc20({
       ipId: ipid.startsWith("0x")? (ipid as `0x${string}`): (`0x${ipid}` as `0x${string}`),
       tokens: [

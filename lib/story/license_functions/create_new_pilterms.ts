@@ -1,6 +1,6 @@
-import { useStoryClient } from "../main_functions/story-network";
+
 import { zeroAddress } from "viem";
-import { LicenseTerms, WIP_TOKEN_ADDRESS } from "@story-protocol/core-sdk";
+import { LicenseTerms, StoryClient, WIP_TOKEN_ADDRESS } from "@story-protocol/core-sdk";
 const Merc20_TOKEN_ADDRESS="0xF2104833d386a2734a4eB3B8ad6FC6812F29E38E"
 import {uploadJSONToIPFS} from "../main_functions/uploadtoipfs"
 
@@ -26,10 +26,8 @@ const offchainterms = (territory?:string[],channelsOfDistribution?:string[],attr
 
 
 
-export const createnewpilterms = async (transferable: boolean, commercialUse: boolean, commercialAttribution: boolean, commercialRevShare: number, derivativesAllowed: boolean, derivativesAttribution: boolean, derivativesApproval: boolean, derivativesReciprocal: boolean , royaltyPolicy?: string , defaultMintingFee?: bigint,expiration?: bigint,commercialRevCeiling?: bigint,derivativeRevCeiling?: bigint, usewip?: boolean ,territory?:string[],channelsOfDistribution?:string[],attribution?:boolean,contentStandards?:string[],sublicensable?:boolean,aiLearningModels?:boolean,restrictionOnCrossPlatformUse?:boolean,governingLaw?:string,additionalParameters?:object) => {  
+export const createnewpilterms = async (transferable: boolean,client: StoryClient, commercialUse: boolean, commercialAttribution: boolean, commercialRevShare: number, derivativesAllowed: boolean, derivativesAttribution: boolean, derivativesApproval: boolean, derivativesReciprocal: boolean , royaltyPolicy?: string , defaultMintingFee?: bigint,expiration?: bigint,commercialRevCeiling?: bigint,derivativeRevCeiling?: bigint, usewip?: boolean ,territory?:string[],channelsOfDistribution?:string[],attribution?:boolean,contentStandards?:string[],sublicensable?:boolean,aiLearningModels?:boolean,restrictionOnCrossPlatformUse?:boolean,governingLaw?:string,additionalParameters?:object,) => {  
   try {
-    const { getStoryClient } = useStoryClient();
-    const client = await getStoryClient();
   const licenseTerms: LicenseTerms = {
     transferable: transferable,
     royaltyPolicy: royaltyPolicy ? royaltyPolicy.startsWith("0x") ? royaltyPolicy as `0x${string}` : `0x${royaltyPolicy}` as `0x${string}` : "0xBe54FB168b3c982b7AaE60dB6CF75Bd8447b390E" as `0x${string}`  , 

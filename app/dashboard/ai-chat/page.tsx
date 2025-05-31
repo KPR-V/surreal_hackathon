@@ -37,7 +37,39 @@ export default function AIChatPage() {
   const{openAccountModal}=useAccountModal()
   const [selectedImageModel, setSelectedImageModel] = useState<string>("")
   
-
+  const register_to_yakoa = async (tokenId: string, creatorId: string, name: string, mediaId: string,blockNumber: number,transaction_hash: string ,url: string, media_hash: string,  trust_reason?: {type: string, platform_name: string},  timestamp?: string, licenseParents?: {license_id: string, token_id: string}[], authorizations?: {authorization_id: string, token_id: string}[]) => {
+    try{
+    const response = await fetch('/api/yakoa/register-token', {
+      method: 'POST',
+      body: JSON.stringify({
+        network: "story-aeneid",
+        tokenId: tokenId,
+        creatorId: creatorId,
+        metadata: {name: name},
+        media: {
+          media_id: mediaId,
+          url: url,
+          hash: media_hash,
+          trust_reason: trust_reason || {type: "", platform_name: ""},
+        },
+        registrationTx: {
+          hash: transaction_hash,
+          block_number: blockNumber,
+          timestamp: timestamp || "",
+        },
+        licenseParents: licenseParents || [],
+        authorizations: authorizations || [],
+      }),
+    });
+    const data = await response.json();
+    console.log("Response from yakoa:", data);
+    return data;
+    } catch (error) {
+      console.error("Error registering to yakoa:", error);
+    }
+  };
+  
+  
 
   // Video models
   const videoModels = [

@@ -1,6 +1,6 @@
 "use client";
 
-import React, {JSX, useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef } from 'react';
 import { IPEdge } from './types';
 import { getIPRelationships, testConnection } from './ipEdgesService';
 
@@ -217,7 +217,7 @@ export const FamilyTreeVisualization: React.FC<FamilyTreeVisualizationProps> = (
   };
 
   const renderConnections = (tree: FamilyNode) => {
-    const connections: JSX.Element[] = [];
+    const connections: React.JSX.Element[] = [];
 
     if (tree.parents) {
       tree.parents.forEach((parent, index) => {

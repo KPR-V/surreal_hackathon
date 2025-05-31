@@ -41,6 +41,24 @@ export default function MarketplacePage() {
     debounceMs: 300,
   })
 
+const get_token_from_yakoa = async (tokenId: string) => {
+  try{
+  const response = await fetch('/api/yakoa/get-token', {
+    method: 'GET',
+    body: JSON.stringify({
+      network: "story-aeneid",
+      tokenId: tokenId,
+    }),
+  });
+  const data = await response.json();
+  console.log("Response from yakoa:", data);
+  return data;
+  } catch (error) {
+    console.error("Error getting token from yakoa:", error);
+  }
+}
+
+
   useEffect(() => {
     const loadIPAs = async () => {
       setLoading(true)
