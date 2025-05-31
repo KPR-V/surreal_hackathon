@@ -8,7 +8,15 @@ import { TransactionTable } from './transactionTable';
 import { StoryAPIService, PaginatedResponse } from './apiService';
 import { IPAsset, LicenseToken } from './types';
 
-export const MyAccountTab: React.FC = () => {
+interface MyAccountTabProps {
+  onIPAssetsUpdate?: (ipIds: string[]) => void;
+  refreshTrigger?: number;
+}
+
+export const MyAccountTab: React.FC<MyAccountTabProps> = ({ 
+  onIPAssetsUpdate,
+  refreshTrigger 
+}) => {
   const [activeTab, setActiveTab] = useState<string>('my-ip');
 
   const tabs = [
@@ -20,11 +28,25 @@ export const MyAccountTab: React.FC = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'my-ip': return <MyIPContent />;
+      case 'my-ip': 
+        return (
+          <MyIPContent 
+            onIPAssetsUpdate={onIPAssetsUpdate}
+            refreshTrigger={refreshTrigger}
+            activeTab={activeTab}
+          />
+        );
       case 'disputes': return <DisputesContent />;
       case 'transactions': return <TransactionHistoryContent />;
       case 'license-tokens': return <LicenseTokensContent />;
-      default: return <MyIPContent />;
+      default: 
+        return (
+          <MyIPContent 
+            onIPAssetsUpdate={onIPAssetsUpdate}
+            refreshTrigger={refreshTrigger}
+            activeTab={activeTab}
+          />
+        );
     }
   };
 
@@ -59,7 +81,17 @@ export const MyAccountTab: React.FC = () => {
   );
 };
 
-const MyIPContent: React.FC = () => {
+interface MyIPContentProps {
+  onIPAssetsUpdate?: (ipIds: string[]) => void;
+  refreshTrigger?: number;
+  activeTab: string;
+}
+
+const MyIPContent: React.FC<MyIPContentProps> = ({ 
+  onIPAssetsUpdate, 
+  refreshTrigger, 
+  activeTab 
+}) => {
   const [ipAssets, setIPAssets] = useState<IPAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -92,6 +124,21 @@ const MyIPContent: React.FC = () => {
   useEffect(() => {
     fetchUserIPAssets('initial');
   }, []);
+
+  // Update parent component when IP assets change
+  useEffect(() => {
+    if (activeTab === 'my-ip' && ipAssets.length > 0) {
+      const ipIds = ipAssets.map(asset => asset.ipId);
+      onIPAssetsUpdate?.(ipIds);
+    }
+  }, [ipAssets, activeTab, onIPAssetsUpdate]);
+
+  // Re-fetch when refresh trigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchUserIPAssets('initial');
+    }
+  }, [refreshTrigger]);
 
   const fetchUserIPAssets = async (direction: 'next' | 'previous' | 'initial' = 'initial') => {
     try {
@@ -628,7 +675,7 @@ const LicenseTokensContent: React.FC = () => {
         </>
       )}
 
-      {selectedToken && (
+     {selectedToken && (
         <LicenseInfoModal
           token={selectedToken}
           isOpen={isModalOpen}

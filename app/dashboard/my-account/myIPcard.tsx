@@ -46,12 +46,20 @@ interface IPAsset {
 
 interface MyIPCardProps {
   asset: IPAsset;
-  cardIndex: number; // Add this to determine tooltip position
+  cardIndex: number;
 }
 
 interface RelationshipCounts {
   parents: number;
   children: number;
+}
+
+interface ClaimedRevenueData {
+  // Total claimed amounts (simplified)
+  totalWipTokens: string;
+  totalMerc20Tokens: string;
+  totalValue: string;
+  lastUpdated: number;
 }
 
 export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
@@ -64,6 +72,14 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
   const [relationships, setRelationships] = useState<RelationshipCounts>({ parents: 0, children: 0 });
   const [loadingRelationships, setLoadingRelationships] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  
+  // Simplified state for tracking only total claimed revenue
+  const [claimedRevenue, setClaimedRevenue] = useState<ClaimedRevenueData>({
+    totalWipTokens: '0',
+    totalMerc20Tokens: '0',
+    totalValue: '$0.00',
+    lastUpdated: 0
+  });
   
   const manageButtonRef = useRef<HTMLButtonElement>(null);
   
@@ -80,6 +96,14 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
   useEffect(() => {
     fetchRelationshipCounts();
     fetchDisputeInfo();
+    loadClaimedRevenue();
+    
+    // Set up intervals for real-time updates
+    const relationshipInterval = setInterval(fetchRelationshipCounts, 60000); // Update every minute
+    
+    return () => {
+      clearInterval(relationshipInterval);
+    };
   }, [asset.ipId]);
 
   // Add this useEffect to fetch dispute data for the card
@@ -123,21 +147,122 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
     fetchDisputeData();
   }, [asset.ipId]);
 
- const fetchRelationshipCounts = async () => {
-  try {
-    const relationshipData = await getIPRelationships(asset.ipId);
-    setRelationships({
-      parents: relationshipData.ancestorCount || 0,
-      children: relationshipData.descendantCount || 0
-    });
-  } catch (error) {
-    console.error('Error fetching relationship counts:', error);
-    setRelationships({
-      parents: 0,
-      children: 0
-    });
-  }
-};
+  const fetchRelationshipCounts = async () => {
+    setLoadingRelationships(true);
+    try {
+      const relationshipData = await getIPRelationships(asset.ipId);
+      setRelationships({
+        parents: relationshipData.ancestorCount || 0,
+        children: relationshipData.descendantCount || 0
+      });
+    } catch (error) {
+      console.error('Error fetching relationship counts:', error);
+      setRelationships({
+        parents: 0,
+        children: 0
+      });
+    } finally {
+      setLoadingRelationships(false);
+    }
+  };
+
+  // Load claimed revenue from localStorage or initialize
+  const loadClaimedRevenue = () => {
+    try {
+      const storageKey = `claimedRevenue_${asset.ipId}`;
+      const savedData = localStorage.getItem(storageKey);
+      
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        setClaimedRevenue(parsed);
+      } else {
+        // Initialize with zeros
+        setClaimedRevenue({
+          totalWipTokens: '0',
+          totalMerc20Tokens: '0',
+          totalValue: '$0.00',
+          lastUpdated: Date.now()
+        });
+      }
+    } catch (error) {
+      console.error('Error loading claimed revenue:', error);
+      setClaimedRevenue({
+        totalWipTokens: '0',
+        totalMerc20Tokens: '0',
+        totalValue: '$0.00',
+        lastUpdated: Date.now()
+      });
+    }
+  };
+
+  // Save claimed revenue to localStorage
+  const saveClaimedRevenue = (data: ClaimedRevenueData) => {
+    try {
+      const storageKey = `claimedRevenue_${asset.ipId}`;
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch (error) {
+      console.error('Error saving claimed revenue:', error);
+    }
+  };
+
+  // Simplified update function - just add to totals
+  const updateClaimedRevenue = (wipAmount: string = '0', merc20Amount: string = '0') => {
+    const newData = {
+      totalWipTokens: (parseFloat(claimedRevenue.totalWipTokens) + parseFloat(wipAmount)).toString(),
+      totalMerc20Tokens: (parseFloat(claimedRevenue.totalMerc20Tokens) + parseFloat(merc20Amount)).toString(),
+      totalValue: '',
+      lastUpdated: Date.now()
+    };
+    
+    // Calculate total USD value
+    newData.totalValue = calculateTotalValue(newData.totalWipTokens, newData.totalMerc20Tokens);
+    
+    setClaimedRevenue(newData);
+    saveClaimedRevenue(newData);
+  };
+
+  const formatTokenAmount = (amount: string | number | bigint): string => {
+    try {
+      let numAmount: number;
+      if (typeof amount === 'bigint') {
+        numAmount = Number(amount);
+      } else if (typeof amount === 'string') {
+        numAmount = parseFloat(amount);
+      } else {
+        numAmount = amount;
+      }
+      
+      if (isNaN(numAmount) || numAmount === 0) return '0';
+      
+      // Convert from wei if it's a very large number
+      if (numAmount > 1e15) {
+        return (numAmount / 1e18).toFixed(4);
+      }
+      
+      return numAmount.toFixed(4);
+    } catch (error) {
+      return '0';
+    }
+  };
+
+  const calculateTotalValue = (wipAmount: string, merc20Amount: string): string => {
+    try {
+      const wip = parseFloat(wipAmount) || 0;
+      const merc20 = parseFloat(merc20Amount) || 0;
+      
+      // Simple calculation - in reality you'd want to fetch token prices
+      // For now, assuming 1 WIP = $0.10 and 1 MERC20 = $0.05
+      const wipValue = wip * 0.10;
+      const merc20Value = merc20 * 0.05;
+      const totalUSD = wipValue + merc20Value;
+      
+      if (totalUSD < 0.01) return '< $0.01';
+      if (totalUSD < 1) return `$${totalUSD.toFixed(3)}`;
+      return `$${totalUSD.toFixed(2)}`;
+    } catch (error) {
+      return '$0.00';
+    }
+  };
 
   const fetchDisputeInfo = async () => {
     setLoadingDisputes(true);
@@ -178,22 +303,35 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
 
   const handleFulfillLicense = (data: any) => {
     console.log('Fulfill license terms:', data);
-    // TODO: Call fulfillLicenseTerms function
+    // License fulfillment doesn't directly affect claimed revenue for this IP
   };
 
   const handleUpdateMetadata = (data: any) => {
     console.log('Update metadata:', data);
-    // TODO: Call update_metadata function
+    // Metadata updates don't affect revenue, but might affect relationships
+    setTimeout(fetchRelationshipCounts, 2000);
   };
 
   const handleClaimMyIP = (data: any) => {
     console.log('Claim my IP revenue:', data);
-    // TODO: Call claim_revenue_myip function
+    
+    // Parse amounts from transaction result
+    // For now, using example amounts - replace with actual parsed amounts
+    const wipAmount = '1.5';
+    const merc20Amount = '0.8';
+    
+    updateClaimedRevenue(wipAmount, merc20Amount);
   };
 
   const handleClaimChildIP = (data: any) => {
     console.log('Claim child IP revenue:', data);
-    // TODO: Call claim_revenue_from_childip function
+    
+    // Parse amounts from transaction result
+    // For now, using example amounts - replace with actual parsed amounts
+    const wipAmount = '0.5';
+    const merc20Amount = '0.3';
+    
+    updateClaimedRevenue(wipAmount, merc20Amount);
   };
 
   const handleManageClick = () => {
@@ -210,6 +348,16 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
       });
     }
     setIsTooltipOpen(!isTooltipOpen);
+  };
+
+  const getTimeSinceUpdate = () => {
+    if (claimedRevenue.lastUpdated === 0) return '';
+    const seconds = Math.floor((Date.now() - claimedRevenue.lastUpdated) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
   };
 
   return (
@@ -260,6 +408,7 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
                 </div>
               </div>
             )}
+
           </div>
 
           <div className="p-6">
@@ -332,15 +481,30 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
               )}
             </div>
 
-            {/* Stats Grid */}
+            {/* Simplified Stats Grid */}
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-zinc-800/30 rounded-lg p-3">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Revenue</p>
-                <p className="text-sm font-medium text-blue-400">{asset.revenue}</p>
+              {/* Simplified Claimed Revenue Card */}
+              <div className="bg-zinc-800/30 rounded-lg p-3 relative">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Revenue</p>
+          
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-blue-400">{claimedRevenue.totalValue}</p>
+                </div>
               </div>
-              <div className="bg-zinc-800/30 rounded-lg p-3">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Derivatives</p>
-                <p className="text-sm font-medium text-pink-400">{asset.derivatives}</p>
+
+              {/* Derivatives Card - unchanged */}
+              <div className="bg-zinc-800/30 rounded-lg p-3 relative">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Derivatives</p>
+                  {loadingRelationships && (
+                    <div className="w-2 h-2 bg-pink-400 rounded-full animate-pulse"></div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-pink-400">{relationships.children}</p>
+                </div>
               </div>
             </div>
 

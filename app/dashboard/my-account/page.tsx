@@ -9,12 +9,14 @@ import { CreateNFTCollectionModal } from './createNFTcollectionModal'
 const page = () => {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
+  const [userIpIds, setUserIpIds] = useState<string[]>([]); // Track user's IP assets
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Sample statistics data - you can replace with actual data from your API
   const accountStats = [
     {
       title: "Total Assets",
-      value: "12",
+      value: userIpIds.length.toString(),
       subtitle: "Registered IPs",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,6 +85,14 @@ const page = () => {
   const handleClaimRevenue = () => {
     // Function to handle claimable revenue claiming
     console.log('Claim all revenue function called');
+    // Trigger a refresh of the statistics or IP assets
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleRevenueClaimSuccess = () => {
+    console.log('Revenue claimed successfully!');
+    // Trigger a refresh of the statistics or IP assets
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -110,15 +120,20 @@ const page = () => {
           ))}
         </div>
 
-        {/* Miscellaneous Actions */}
+        {/* Miscellaneous Actions - Contains ClaimableRevenue */}
         <Miscellaneous 
+          userIpIds={userIpIds}
+          userAddress="0x34a817D5723A289E125b35aAac7e763b6097d38d"
           onTransferTokens={handleTransferTokens}
           onCreateCollection={handleCreateCollection}
-          onClaimRevenue={handleClaimRevenue}
+          onClaimRevenue={handleRevenueClaimSuccess}
         />
 
         {/* Tab Component */}
-        <MyAccountTab />
+        <MyAccountTab 
+          onIPAssetsUpdate={setUserIpIds}
+          refreshTrigger={refreshTrigger}
+        />
 
         {/* Modals */}
         <TransferTokenIP2IP

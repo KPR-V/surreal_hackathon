@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from 'react';
+import { createSpgNftCollection } from '../../../lib/story/nft_functions/create_new_nftcollection';
+import { Address } from 'viem';
 
 interface CreateNFTCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate?: (data: CollectionData) => void;
+  onCreate?: (data: CollectionData, contractAddress?: string) => void;
 }
 
 interface CollectionData {
@@ -31,6 +33,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
   });
 
   const [errors, setErrors] = useState<Partial<CollectionData>>({});
+  const [isCreating, setIsCreating] = useState(false);
+  const [creationResult, setCreationResult] = useState<{
+    success: boolean;
+    message: string;
+    contractAddress?: string;
+  } | null>(null);
 
   const validateForm = () => {
     const newErrors: Partial<CollectionData> = {};
@@ -51,11 +59,47 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onCreate?.(formData);
-      onClose();
+    if (!validateForm()) return;
+
+    setIsCreating(true);
+    setCreationResult(null);
+
+    try {
+      const contractAddress = await createSpgNftCollection(
+        formData.name,
+        formData.symbol,
+        formData.mintFeeRecipient as Address,
+        formData.isPublicMinting,
+        formData.mintOpen
+      );
+
+      if (contractAddress) {
+        setCreationResult({
+          success: true,
+          message: `Collection created successfully! Contract: ${contractAddress}`,
+          contractAddress
+        });
+        
+        onCreate?.(formData, contractAddress);
+        
+        // Auto-close after 4 seconds on success
+        setTimeout(() => {
+          onClose();
+          setCreationResult(null);
+        }, 4000);
+      } else {
+        throw new Error('Failed to create collection - no contract address returned');
+      }
+    } catch (error) {
+      console.error('Collection creation failed:', error);
+      setCreationResult({
+        success: false,
+        message: `Creation failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -93,6 +137,7 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
               <button 
                 onClick={onClose}
                 className="p-2 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-lg transition-all duration-200"
+                disabled={isCreating}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -101,26 +146,58 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
             </div>
           </div>
 
+          {/* Creation Result Display */}
+          {creationResult && (
+            <div className={`mx-6 mt-4 p-3 rounded-lg border ${
+              creationResult.success
+                ? 'bg-green-500/10 border-green-500/30 text-green-300'
+                : 'bg-red-500/10 border-red-500/30 text-red-300'
+            }`}>
+              <div className="flex items-start space-x-2">
+                <svg className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                  creationResult.success ? 'text-green-400' : 'text-red-400'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {creationResult.success ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  )}
+                </svg>
+                <div className="flex-1">
+                  <p className="text-xs break-all">{creationResult.message}</p>
+                  {creationResult.success && creationResult.contractAddress && (
+                    <div className="mt-2 p-2 bg-black/20 rounded border">
+                      <p className="text-xs text-green-200 mb-1">Contract Address:</p>
+                      <p className="text-xs font-mono text-green-100 break-all">{creationResult.contractAddress}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tab Navigation */}
           <div className="px-6 pt-4 flex-shrink-0">
             <div className="flex space-x-1 bg-zinc-800/30 rounded-lg p-1">
               <button
                 onClick={() => setActiveTab('preview')}
+                disabled={isCreating}
                 className={`px-3 py-2 rounded text-xs font-medium transition-all duration-200 ${
                   activeTab === 'preview'
                     ? 'bg-purple-500/20 text-purple-300'
                     : 'text-zinc-400 hover:text-zinc-300 hover:bg-zinc-700/30'
-                }`}
+                } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Collection Preview
               </button>
               <button
                 onClick={() => setActiveTab('create')}
+                disabled={isCreating}
                 className={`px-3 py-2 rounded text-xs font-medium transition-all duration-200 ${
                   activeTab === 'create'
                     ? 'bg-purple-500/20 text-purple-300'
                     : 'text-zinc-400 hover:text-zinc-300 hover:bg-zinc-700/30'
-                }`}
+                } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Configuration
               </button>
@@ -274,11 +351,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                         value={formData.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
                         placeholder="My Custom Collection"
+                        disabled={isCreating}
                         className={`w-full px-3 py-2.5 bg-zinc-700/50 border rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
                           errors.name 
                             ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                             : 'border-zinc-600/50 focus:border-purple-500/50 focus:ring-purple-500/20'
-                        }`}
+                        } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                       {errors.name && (
                         <p className="text-xs text-red-400">{errors.name}</p>
@@ -297,11 +375,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                         onChange={(e) => handleInputChange('symbol', e.target.value.toUpperCase())}
                         placeholder="MCC"
                         maxLength={10}
+                        disabled={isCreating}
                         className={`w-full px-3 py-2.5 bg-zinc-700/50 border rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 uppercase ${
                           errors.symbol 
                             ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                             : 'border-zinc-600/50 focus:border-purple-500/50 focus:ring-purple-500/20'
-                        }`}
+                        } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                       {errors.symbol && (
                         <p className="text-xs text-red-400">{errors.symbol}</p>
@@ -326,11 +405,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                         value={formData.mintFeeRecipient}
                         onChange={(e) => handleInputChange('mintFeeRecipient', e.target.value)}
                         placeholder="0x0000000000000000000000000000000000000000"
+                        disabled={isCreating}
                         className={`w-full px-3 py-2.5 bg-zinc-700/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 font-mono text-xs ${
                           errors.mintFeeRecipient 
                             ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                             : 'border-zinc-600/50 focus:border-purple-500/50 focus:ring-purple-500/20'
-                        }`}
+                        } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                       {errors.mintFeeRecipient && (
                         <p className="text-xs text-red-400">{errors.mintFeeRecipient}</p>
@@ -347,11 +427,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                           <button
                             type="button"
                             onClick={() => handleInputChange('isPublicMinting', true)}
+                            disabled={isCreating}
                             className={`w-full p-3 rounded-lg border transition-all duration-200 text-left ${
                               formData.isPublicMinting
                                 ? 'bg-green-500/20 border-green-500/30 text-green-300'
                                 : 'bg-zinc-700/30 border-zinc-600/30 text-zinc-400 hover:bg-zinc-600/30'
-                            }`}
+                            } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <div className="text-sm font-medium">Public (Enabled)</div>
                             <div className="text-xs opacity-75">Anyone can mint from this collection</div>
@@ -359,11 +440,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                           <button
                             type="button"
                             onClick={() => handleInputChange('isPublicMinting', false)}
+                            disabled={isCreating}
                             className={`w-full p-3 rounded-lg border transition-all duration-200 text-left ${
                               !formData.isPublicMinting
                                 ? 'bg-orange-500/20 border-orange-500/30 text-orange-300'
                                 : 'bg-zinc-700/30 border-zinc-600/30 text-zinc-400 hover:bg-zinc-600/30'
-                            }`}
+                            } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <div className="text-sm font-medium">Restricted (Disabled)</div>
                             <div className="text-xs opacity-75">Only authorized addresses can mint</div>
@@ -377,11 +459,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                           <button
                             type="button"
                             onClick={() => handleInputChange('mintOpen', true)}
+                            disabled={isCreating}
                             className={`w-full p-3 rounded-lg border transition-all duration-200 text-left ${
                               formData.mintOpen
                                 ? 'bg-green-500/20 border-green-500/30 text-green-300'
                                 : 'bg-zinc-700/30 border-zinc-600/30 text-zinc-400 hover:bg-zinc-600/30'
-                            }`}
+                            } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <div className="text-sm font-medium">Open</div>
                             <div className="text-xs opacity-75">Minting is available from creation</div>
@@ -389,11 +472,12 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                           <button
                             type="button"
                             onClick={() => handleInputChange('mintOpen', false)}
+                            disabled={isCreating}
                             className={`w-full p-3 rounded-lg border transition-all duration-200 text-left ${
                               !formData.mintOpen
                                 ? 'bg-red-500/20 border-red-500/30 text-red-300'
                                 : 'bg-zinc-700/30 border-zinc-600/30 text-zinc-400 hover:bg-zinc-600/30'
-                            }`}
+                            } ${isCreating ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <div className="text-sm font-medium">Closed</div>
                             <div className="text-xs opacity-75">Minting will be disabled initially</div>
@@ -427,15 +511,31 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm"
+                    disabled={isCreating}
+                    className={`flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm ${
+                      isCreating ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg transition-all duration-200 font-medium text-sm"
+                    disabled={isCreating}
+                    className={`flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg transition-all duration-200 font-medium text-sm flex items-center justify-center space-x-2 ${
+                      isCreating ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
-                    Create Collection
+                    {isCreating ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Creating Collection...</span>
+                      </>
+                    ) : (
+                      <span>Create Collection</span>
+                    )}
                   </button>
                 </div>
               </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { update_metadata } from '../../../lib/story/IP_account/update_metadat';
 
 interface UpdateMetadataModalProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
   });
 
   const [errors, setErrors] = useState<Partial<MetadataData>>({});
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateResult, setUpdateResult] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: Partial<MetadataData> = {};
@@ -44,11 +47,37 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onUpdate?.(formData);
-      onClose();
+    if (!validateForm()) return;
+
+    setIsUpdating(true);
+    setUpdateResult(null);
+
+    try {
+      const result = await update_metadata(
+        formData.ipId,
+        formData.metadataURI,
+        formData.metadataHash
+      );
+
+      if (result && result.txHash) {
+        setUpdateResult(`Metadata updated successfully! Transaction hash: ${result.txHash}`);
+        onUpdate?.(formData);
+        
+        // Auto-close after 3 seconds on success
+        setTimeout(() => {
+          onClose();
+          setUpdateResult(null);
+        }, 3000);
+      } else {
+        throw new Error('Failed to update metadata - no transaction hash returned');
+      }
+    } catch (error) {
+      console.error('Metadata update failed:', error);
+      setUpdateResult(`Update failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -86,6 +115,7 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
               <button 
                 onClick={onClose}
                 className="p-2 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-lg transition-all duration-200"
+                disabled={isUpdating}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -93,6 +123,30 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Update Result Display */}
+          {updateResult && (
+            <div className={`mx-6 mt-4 p-3 rounded-lg border ${
+              updateResult.includes('failed') || updateResult.includes('error')
+                ? 'bg-red-500/10 border-red-500/30 text-red-300'
+                : 'bg-green-500/10 border-green-500/30 text-green-300'
+            }`}>
+              <div className="flex items-start space-x-2">
+                <svg className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                  updateResult.includes('failed') || updateResult.includes('error')
+                    ? 'text-red-400'
+                    : 'text-green-400'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {updateResult.includes('failed') || updateResult.includes('error') ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  )}
+                </svg>
+                <p className="text-xs break-all">{updateResult}</p>
+              </div>
+            </div>
+          )}
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -143,11 +197,12 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
                   value={formData.metadataURI}
                   onChange={(e) => handleInputChange('metadataURI', e.target.value)}
                   placeholder="https://example.com/metadata.json"
+                  disabled={isUpdating}
                   className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
                     errors.metadataURI 
                       ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                       : 'border-zinc-700/50 focus:border-cyan-500/50 focus:ring-cyan-500/20'
-                  }`}
+                  } ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 {errors.metadataURI && (
                   <p className="text-xs text-red-400">{errors.metadataURI}</p>
@@ -169,11 +224,12 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
                   value={formData.metadataHash}
                   onChange={(e) => handleInputChange('metadataHash', e.target.value)}
                   placeholder="0x... or hash without 0x prefix"
+                  disabled={isUpdating}
                   className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 font-mono text-xs ${
                     errors.metadataHash 
                       ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                       : 'border-zinc-700/50 focus:border-cyan-500/50 focus:ring-cyan-500/20'
-                  }`}
+                  } ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 {errors.metadataHash && (
                   <p className="text-xs text-red-400">{errors.metadataHash}</p>
@@ -221,20 +277,54 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
                 </div>
               </div>
 
+              {/* Warning Box */}
+              <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                <div className="flex items-start space-x-2">
+                  <svg className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div className="text-xs">
+                    <p className="text-yellow-300 font-medium mb-1">Important Notes:</p>
+                    <ul className="text-yellow-200 space-y-0.5 text-xs">
+                      <li>• Metadata updates are permanent on the blockchain</li>
+                      <li>• Ensure the URI and hash are correct before submitting</li>
+                      <li>• Gas fees will be required for this transaction</li>
+                      <li>• Changes may take time to reflect across platforms</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex space-x-3 pt-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm"
+                  disabled={isUpdating}
+                  className={`flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm ${
+                    isUpdating ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white rounded-lg transition-all duration-200 font-medium text-sm"
+                  disabled={isUpdating}
+                  className={`flex-1 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white rounded-lg transition-all duration-200 font-medium text-sm flex items-center justify-center space-x-2 ${
+                    isUpdating ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Update Metadata
+                  {isUpdating ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <span>Update Metadata</span>
+                  )}
                 </button>
               </div>
             </form>

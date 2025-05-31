@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { transfer_ipaccount_to_ipaccount } from '../../../lib/story/IP_account/transfer_ipa_to_ipa';
 
 interface TransferTokenIP2IPProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
   });
 
   const [errors, setErrors] = useState<Partial<TransferData>>({});
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferResult, setTransferResult] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: Partial<TransferData> = {};
@@ -48,11 +51,36 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onTransfer?.(formData);
-      onClose();
+    if (!validateForm()) return;
+
+    setIsTransferring(true);
+    setTransferResult(null);
+
+    try {
+      const result = await transfer_ipaccount_to_ipaccount(
+        formData.amount,
+        formData.ipid,
+        formData.receiver_address,
+        formData.useWipToken
+      );
+
+      if (result) {
+        setTransferResult(result);
+        onTransfer?.(formData);
+        
+        // Auto-close after 3 seconds on success
+        setTimeout(() => {
+          onClose();
+          setTransferResult(null);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Transfer failed:', error);
+      setTransferResult('Transfer failed. Please try again.');
+    } finally {
+      setIsTransferring(false);
     }
   };
 
@@ -90,6 +118,7 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
               <button 
                 onClick={onClose}
                 className="p-2 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-lg transition-all duration-200"
+                disabled={isTransferring}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -97,6 +126,30 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Transfer Result Display */}
+          {transferResult && (
+            <div className={`mx-6 mt-4 p-3 rounded-lg border ${
+              transferResult.includes('failed') || transferResult.includes('error')
+                ? 'bg-red-500/10 border-red-500/30 text-red-300'
+                : 'bg-green-500/10 border-green-500/30 text-green-300'
+            }`}>
+              <div className="flex items-start space-x-2">
+                <svg className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                  transferResult.includes('failed') || transferResult.includes('error')
+                    ? 'text-red-400'
+                    : 'text-green-400'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {transferResult.includes('failed') || transferResult.includes('error') ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  )}
+                </svg>
+                <p className="text-xs break-all">{transferResult}</p>
+              </div>
+            </div>
+          )}
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -109,11 +162,12 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
                   <button
                     type="button"
                     onClick={() => handleInputChange('useWipToken', true)}
+                    disabled={isTransferring}
                     className={`p-3 rounded-lg border transition-all duration-200 ${
                       formData.useWipToken
                         ? 'bg-blue-500/20 border-blue-500/30 text-blue-300'
                         : 'bg-zinc-800/30 border-zinc-700/30 text-zinc-400 hover:bg-zinc-700/30'
-                    }`}
+                    } ${isTransferring ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-left">
                       <p className="text-sm font-medium">WIP Token</p>
@@ -123,11 +177,12 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
                   <button
                     type="button"
                     onClick={() => handleInputChange('useWipToken', false)}
+                    disabled={isTransferring}
                     className={`p-3 rounded-lg border transition-all duration-200 ${
                       !formData.useWipToken
                         ? 'bg-purple-500/20 border-purple-500/30 text-purple-300'
                         : 'bg-zinc-800/30 border-zinc-700/30 text-zinc-400 hover:bg-zinc-700/30'
-                    }`}
+                    } ${isTransferring ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-left">
                       <p className="text-sm font-medium">MERC20 Token</p>
@@ -150,11 +205,12 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
                     value={formData.amount}
                     onChange={(e) => handleInputChange('amount', e.target.value)}
                     placeholder="0.0"
-                    className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                    disabled={isTransferring}
+                  className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                       errors.amount 
                         ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                         : 'border-zinc-700/50 focus:border-blue-500/50 focus:ring-blue-500/20'
-                    }`}
+                    } ${isTransferring ? 'opacity-50 cursor-not-allowed' : ''}`}
                   />
                   <div className="absolute right-3 top-2.5 text-xs text-zinc-400">
                     {formData.useWipToken ? 'WIP' : 'MERC20'}
@@ -179,11 +235,12 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
                   value={formData.ipid}
                   onChange={(e) => handleInputChange('ipid', e.target.value)}
                   placeholder="0x..."
+                  disabled={isTransferring}
                   className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 font-mono text-xs ${
                     errors.ipid 
                       ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                       : 'border-zinc-700/50 focus:border-blue-500/50 focus:ring-blue-500/20'
-                  }`}
+                  } ${isTransferring ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 {errors.ipid && (
                   <p className="text-xs text-red-400">{errors.ipid}</p>
@@ -204,11 +261,12 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
                   value={formData.receiver_address}
                   onChange={(e) => handleInputChange('receiver_address', e.target.value)}
                   placeholder="0x..."
+                  disabled={isTransferring}
                   className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 font-mono text-xs ${
                     errors.receiver_address 
                       ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                       : 'border-zinc-700/50 focus:border-blue-500/50 focus:ring-blue-500/20'
-                  }`}
+                  } ${isTransferring ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 {errors.receiver_address && (
                   <p className="text-xs text-red-400">{errors.receiver_address}</p>
@@ -241,15 +299,31 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm"
+                  disabled={isTransferring}
+                  className={`flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm ${
+                    isTransferring ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 font-medium text-sm"
+                  disabled={isTransferring}
+                  className={`flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 font-medium text-sm flex items-center justify-center space-x-2 ${
+                    isTransferring ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Transfer Tokens
+                  {isTransferring ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Transferring...</span>
+                    </>
+                  ) : (
+                    <span>Transfer Tokens</span>
+                  )}
                 </button>
               </div>
             </form>

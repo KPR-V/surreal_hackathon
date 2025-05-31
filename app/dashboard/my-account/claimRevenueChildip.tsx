@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { claim_revenue_from_childip } from '../../../lib/story/royalty_functions/claim_revenue';
 
 interface ClaimRevenueChildIPProps {
   isOpen: boolean;
@@ -32,6 +33,12 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
   });
 
   const [errors, setErrors] = useState<Partial<ClaimChildIPData>>({});
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimResult, setClaimResult] = useState<{
+    success: boolean;
+    message: string;
+    details?: any;
+  } | null>(null);
 
   const validateForm = () => {
     const newErrors: Partial<ClaimChildIPData> = {};
@@ -48,11 +55,47 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onClaim?.(formData);
-      onClose();
+    if (!validateForm()) return;
+
+    setIsClaiming(true);
+    setClaimResult(null);
+
+    try {
+      const result = await claim_revenue_from_childip(
+        formData.ipId,
+        formData.childIpId,
+        formData.useWipToken,
+        formData.royaltyPolicy,
+        formData.autoUnwrapIpTokens
+      );
+
+      if (result && result.txHash) {
+        setClaimResult({
+          success: true,
+          message: `Child IP revenue claimed successfully!`,
+          details: result
+        });
+        
+        onClaim?.(formData);
+        
+        // Auto-close after 4 seconds on success
+        setTimeout(() => {
+          onClose();
+          setClaimResult(null);
+        }, 4000);
+      } else {
+        throw new Error('Failed to claim child IP revenue - no transaction hash returned');
+      }
+    } catch (error) {
+      console.error('Child IP revenue claim failed:', error);
+      setClaimResult({
+        success: false,
+        message: `Claim failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      });
+    } finally {
+      setIsClaiming(false);
     }
   };
 
@@ -90,6 +133,7 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
               <button 
                 onClick={onClose}
                 className="p-2 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-lg transition-all duration-200"
+                disabled={isClaiming}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -97,6 +141,52 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Claim Result Display */}
+          {claimResult && (
+            <div className={`mx-6 mt-4 p-3 rounded-lg border ${
+              claimResult.success
+                ? 'bg-green-500/10 border-green-500/30 text-green-300'
+                : 'bg-red-500/10 border-red-500/30 text-red-300'
+            }`}>
+              <div className="flex items-start space-x-2">
+                <svg className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                  claimResult.success ? 'text-green-400' : 'text-red-400'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {claimResult.success ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  )}
+                </svg>
+                <div className="flex-1">
+                  <p className="text-xs break-all mb-2">{claimResult.message}</p>
+                  {claimResult.success && claimResult.details && (
+                    <div className="space-y-2">
+                      {claimResult.details.txHash && (
+                        <div className="p-2 bg-black/20 rounded border">
+                          <p className="text-xs text-green-200 mb-1">Transaction Hash:</p>
+                          <p className="text-xs font-mono text-green-100 break-all">
+                            {Array.isArray(claimResult.details.txHash) 
+                              ? claimResult.details.txHash.join(', ')
+                              : claimResult.details.txHash}
+                          </p>
+                        </div>
+                      )}
+                      {claimResult.details.claimedTokens && (
+                        <div className="p-2 bg-black/20 rounded border">
+                          <p className="text-xs text-green-200 mb-1">Claimed Tokens:</p>
+                          <p className="text-xs font-mono text-green-100">
+                            {JSON.stringify(claimResult.details.claimedTokens, null, 2)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -125,11 +215,12 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                   <button
                     type="button"
                     onClick={() => handleInputChange('useWipToken', true)}
+                    disabled={isClaiming}
                     className={`p-3 rounded-lg border transition-all duration-200 ${
                       formData.useWipToken
                         ? 'bg-purple-500/20 border-purple-500/30 text-purple-300'
                         : 'bg-zinc-800/30 border-zinc-700/30 text-zinc-400 hover:bg-zinc-700/30'
-                    }`}
+                    } ${isClaiming ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-left">
                       <p className="text-sm font-medium">WIP Token</p>
@@ -139,11 +230,12 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                   <button
                     type="button"
                     onClick={() => handleInputChange('useWipToken', false)}
+                    disabled={isClaiming}
                     className={`p-3 rounded-lg border transition-all duration-200 ${
                       !formData.useWipToken
                         ? 'bg-purple-500/20 border-purple-500/30 text-purple-300'
                         : 'bg-zinc-800/30 border-zinc-700/30 text-zinc-400 hover:bg-zinc-700/30'
-                    }`}
+                    } ${isClaiming ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-left">
                       <p className="text-sm font-medium">MERC20 Token</p>
@@ -182,11 +274,12 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                   value={formData.childIpId}
                   onChange={(e) => handleInputChange('childIpId', e.target.value)}
                   placeholder="0x..."
+                  disabled={isClaiming}
                   className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 font-mono text-xs ${
                     errors.childIpId 
                       ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                       : 'border-zinc-700/50 focus:border-purple-500/50 focus:ring-purple-500/20'
-                  }`}
+                  } ${isClaiming ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 {errors.childIpId && (
                   <p className="text-xs text-red-400">{errors.childIpId}</p>
@@ -208,11 +301,12 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                   value={formData.royaltyPolicy}
                   onChange={(e) => handleInputChange('royaltyPolicy', e.target.value)}
                   placeholder="0x..."
+                  disabled={isClaiming}
                   className={`w-full px-3 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 transition-all duration-200 font-mono text-xs ${
                     errors.royaltyPolicy 
                       ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
                       : 'border-zinc-700/50 focus:border-purple-500/50 focus:ring-purple-500/20'
-                  }`}
+                  } ${isClaiming ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 {errors.royaltyPolicy && (
                   <p className="text-xs text-red-400">{errors.royaltyPolicy}</p>
@@ -229,11 +323,12 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                   <button
                     type="button"
                     onClick={() => handleInputChange('autoUnwrapIpTokens', true)}
+                    disabled={isClaiming}
                     className={`p-3 rounded-lg border transition-all duration-200 ${
                       formData.autoUnwrapIpTokens
                         ? 'bg-green-500/20 border-green-500/30 text-green-300'
                         : 'bg-zinc-800/30 border-zinc-700/30 text-zinc-400 hover:bg-zinc-700/30'
-                    }`}
+                    } ${isClaiming ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-left">
                       <p className="text-sm font-medium">Auto-unwrap</p>
@@ -243,11 +338,12 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                   <button
                     type="button"
                     onClick={() => handleInputChange('autoUnwrapIpTokens', false)}
+                    disabled={isClaiming}
                     className={`p-3 rounded-lg border transition-all duration-200 ${
                       !formData.autoUnwrapIpTokens
                         ? 'bg-orange-500/20 border-orange-500/30 text-orange-300'
                         : 'bg-zinc-800/30 border-zinc-700/30 text-zinc-400 hover:bg-zinc-700/30'
-                    }`}
+                    } ${isClaiming ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-left">
                       <p className="text-sm font-medium">Keep as IP tokens</p>
@@ -292,6 +388,7 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                       <li>• Ensure the child IP actually owes revenue to your parent IP</li>
                       <li>• Verify the royalty policy address is correct</li>
                       <li>• Only claimable revenue will be processed</li>
+                      <li>• Gas fees will be deducted from your wallet</li>
                     </ul>
                   </div>
                 </div>
@@ -302,15 +399,31 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm"
+                  disabled={isClaiming}
+                  className={`flex-1 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm ${
+                    isClaiming ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg transition-all duration-200 font-medium text-sm"
+                  disabled={isClaiming}
+                  className={`flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg transition-all duration-200 font-medium text-sm flex items-center justify-center space-x-2 ${
+                    isClaiming ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Claim Child Revenue
+                  {isClaiming ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Claiming...</span>
+                    </>
+                  ) : (
+                    <span>Claim Child Revenue</span>
+                  )}
                 </button>
               </div>
             </form>
