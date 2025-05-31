@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { createSpgNftCollection } from '../../../lib/story/nft_functions/create_new_nftcollection';
 import { Address } from 'viem';
-
+import { useStoryClient } from '../../../lib/story/main_functions/story-network';
 interface CreateNFTCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,6 +23,7 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
   onClose,
   onCreate
 }) => {
+  const { getStoryClient } = useStoryClient();
   const [activeTab, setActiveTab] = useState<'preview' | 'create'>('preview');
   const [formData, setFormData] = useState<CollectionData>({
     name: 'My Custom Collection',
@@ -67,7 +68,9 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
     setCreationResult(null);
 
     try {
+      const client = await getStoryClient();
       const contractAddress = await createSpgNftCollection(
+        client,
         formData.name,
         formData.symbol,
         formData.mintFeeRecipient as Address,

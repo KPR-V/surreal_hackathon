@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { claim_revenue_myip } from '../../../lib/story/royalty_functions/claim_revenue';
+import { useStoryClient } from '../../../lib/story/main_functions/story-network';
 
 interface ClaimRevenueMyIPProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const ClaimRevenueMyIPModal: React.FC<ClaimRevenueMyIPProps> = ({
   currentIpId,
   onClaim
 }) => {
+  const { getStoryClient } = useStoryClient();
   const [formData, setFormData] = useState<ClaimMyIPData>({
     ipId: currentIpId,
     useWipToken: true
@@ -40,7 +42,8 @@ export const ClaimRevenueMyIPModal: React.FC<ClaimRevenueMyIPProps> = ({
     setClaimResult(null);
 
     try {
-      const result = await claim_revenue_myip(formData.ipId, formData.useWipToken);
+      const client = await getStoryClient();
+      const result = await claim_revenue_myip(formData.ipId, formData.useWipToken,client);
 
       if (result && result.txHash) {
         setClaimResult({

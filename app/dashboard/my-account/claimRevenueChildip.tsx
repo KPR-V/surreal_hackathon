@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { claim_revenue_from_childip } from '../../../lib/story/royalty_functions/claim_revenue';
+import { useStoryClient } from '../../../lib/story/main_functions/story-network';
 
 interface ClaimRevenueChildIPProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
     details?: any;
   } | null>(null);
 
+  const { getStoryClient } = useStoryClient();
   const validateForm = () => {
     const newErrors: Partial<ClaimChildIPData> = {};
     
@@ -63,12 +65,14 @@ export const ClaimRevenueChildIPModal: React.FC<ClaimRevenueChildIPProps> = ({
     setClaimResult(null);
 
     try {
+      const client = await getStoryClient();
       const result = await claim_revenue_from_childip(
         formData.ipId,
         formData.childIpId,
         formData.useWipToken,
         formData.royaltyPolicy,
-        formData.autoUnwrapIpTokens
+        formData.autoUnwrapIpTokens,
+        client
       );
 
       if (result && result.txHash) {

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { transfer_ipaccount_to_ipaccount } from '../../../lib/story/IP_account/transfer_ipa_to_ipa';
-
+import { useStoryClient } from '../../../lib/story/main_functions/story-network';
 interface TransferTokenIP2IPProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,6 +21,7 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
   onClose,
   onTransfer
 }) => {
+  const { getStoryClient } = useStoryClient();
   const [formData, setFormData] = useState<TransferData>({
     amount: '',
     ipid: '',
@@ -59,11 +60,13 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
     setTransferResult(null);
 
     try {
+      const client = await getStoryClient();
       const result = await transfer_ipaccount_to_ipaccount(
         formData.amount,
         formData.ipid,
         formData.receiver_address,
-        formData.useWipToken
+        formData.useWipToken,
+        client
       );
 
       if (result) {

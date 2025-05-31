@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { fulfillLicenseTerms } from '../../../lib/story/royalty_functions/pay_ipa';
-
+import { useStoryClient } from '../../../lib/story/main_functions/story-network';
 interface FulfillLicenseTermsProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,6 +23,7 @@ export const FulfillLicenseTermsModal: React.FC<FulfillLicenseTermsProps> = ({
   currentIpId,
   onFulfill
 }) => {
+  const { getStoryClient } = useStoryClient();
   const [formData, setFormData] = useState<FulfillmentData>({
     receiverIpId: '',
     payerIpId: currentIpId,
@@ -57,11 +58,13 @@ export const FulfillLicenseTermsModal: React.FC<FulfillLicenseTermsProps> = ({
     setFulfillmentResult(null);
 
     try {
+      const client = await getStoryClient();
       const result = await fulfillLicenseTerms(
         formData.receiverIpId,
         formData.payerIpId,
         formData.amount,
-        formData.useWipToken
+        formData.useWipToken,
+        client
       );
 
       if (result) {

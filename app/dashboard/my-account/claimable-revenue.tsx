@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { claimable_revenue, batch_claim_all_revenue } from '../../../lib/story/royalty_functions/claim_revenue';
-
+import { useStoryClient } from '../../../lib/story/main_functions/story-network';
 interface ClaimableRevenueProps {
   userIpIds?: string[]; // Array of user's IP asset IDs
   userAddress?: string; // User's wallet address
@@ -20,7 +20,7 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [tokenType, setTokenType] = useState<'WIP' | 'MERC20'>('WIP');
   const [error, setError] = useState<string | null>(null);
-
+  const { getStoryClient } = useStoryClient();
   // Use a test address if userAddress is not provided
   const testAddress = "0x34a817D5723A289E125b35aAac7e763b6097d38d";
   const claimer = userAddress || testAddress;
@@ -44,10 +44,12 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
         try {
           console.log(`Checking claimable revenue for IP: ${ipId}`);
           
+          const client = await getStoryClient();
           const result = await claimable_revenue(
             ipId,
             claimer,
-            tokenType === 'WIP'
+            tokenType === 'WIP',
+            client
           );
           
           if (result?.amount) {
@@ -113,7 +115,8 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
 
       console.log('Batch claim requests:', claimRequests);
 
-      const result = await batch_claim_all_revenue(claimRequests);
+      const client = await getStoryClient();
+      const result = await batch_claim_all_revenue(claimRequests,client);
       
       if (result?.txHashes) {
         console.log('Claim successful! Transaction hashes:', result.txHashes);

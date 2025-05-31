@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { update_metadata } from '../../../lib/story/IP_account/update_metadat';
-
+import { useStoryClient } from '../../../lib/story/main_functions/story-network';
 interface UpdateMetadataModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,6 +22,7 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
   currentIpId,
   onUpdate
 }) => {
+  const { getStoryClient } = useStoryClient();
   const [formData, setFormData] = useState<MetadataData>({
     ipId: currentIpId,
     metadataURI: '',
@@ -55,10 +56,12 @@ export const UpdateMetadataModal: React.FC<UpdateMetadataModalProps> = ({
     setUpdateResult(null);
 
     try {
+      const client = await getStoryClient();
       const result = await update_metadata(
         formData.ipId,
         formData.metadataURI,
-        formData.metadataHash
+        formData.metadataHash,
+        client
       );
 
       if (result && result.txHash) {
