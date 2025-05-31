@@ -19,13 +19,24 @@ export interface Dispute {
   liveness?: number;
 }
 
-export interface DisputeInfo {
-  hasDisputes: boolean;
-  activeDisputes: Dispute[];
-  resolvedDisputes: Dispute[];
-  totalDisputes: number;
-  isInitiator: boolean;
-  isTarget: boolean;
+export interface Dispute {
+  id: number;
+  arbitrationPolicy: string;
+  blockNumber: number;
+  blockTimestamp: number;
+  counterEvidenceHash: string;
+  currentTag: string;
+  data: string;
+  disputeTimestamp: number;
+  evidenceHash: string;
+  initiator: string;
+  liveness: number;
+  logIndex: number;
+  status: string;
+  targetIpId: string;
+  targetTag: string;
+  transactionHash: string;
+  umaLink: string;
 }
 
 export interface IPAsset {

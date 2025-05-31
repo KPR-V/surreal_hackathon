@@ -10,6 +10,147 @@ import {
   ComprehensiveLicensingInfo 
 } from './types';
 
+// Get dispute information for an IP asset using real API
+export const getIPDisputes = async (ipId: string): Promise<DisputeInfo> => {
+  try {
+    console.log('Fetching real-time disputes for IP:', ipId);
+
+    const response = await fetch('/api/disputes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        options: {
+          where: {
+            targetIpId: ipId
+          },
+          orderBy: 'disputeTimestamp',
+          orderDirection: 'desc',
+          pagination: {
+            limit: 100
+          }
+        }
+      })
+    });
+
+    if (!response.ok) {
+      console.warn('Failed to fetch disputes from API:', response.status);
+      // Return empty data instead of throwing error
+      return {
+        hasDisputes: false,
+        activeDisputes: [],
+        resolvedDisputes: [],
+        totalDisputes: 0,
+        isInitiator: false,
+        isTarget: false
+      };
+    }
+
+    const apiResponse = await response.json();
+    const disputes: Dispute[] = apiResponse.data || [];
+    
+    console.log('Fetched disputes:', disputes);
+
+    // Categorize disputes by status
+    const activeDisputes = disputes.filter((dispute: Dispute) => 
+      dispute.status.toLowerCase() === 'active' || dispute.status.toLowerCase() === 'pending'
+    );
+    
+    const resolvedDisputes = disputes.filter((dispute: Dispute) => 
+      dispute.status.toLowerCase() === 'resolved' || 
+      dispute.status.toLowerCase() === 'dismissed' ||
+      dispute.status.toLowerCase() === 'disputed'
+    );
+
+    // Check if current IP is involved as initiator in any disputes
+    const isInitiator = disputes.some((dispute: Dispute) => dispute.initiator === ipId);
+
+    return {
+      hasDisputes: disputes.length > 0,
+      activeDisputes,
+      resolvedDisputes,
+      totalDisputes: disputes.length,
+      isInitiator,
+      isTarget: disputes.length > 0 // If we found disputes with this targetIpId, then this IP is a target
+    };
+
+  } catch (error) {
+    console.error('Error fetching dispute info:', error);
+    return {
+      hasDisputes: false,
+      activeDisputes: [],
+      resolvedDisputes: [],
+      totalDisputes: 0,
+      isInitiator: false,
+      isTarget: false
+    };
+  }
+};
+
+// Get a specific dispute by ID
+export const getDispute = async (disputeId: string): Promise<Dispute | null> => {
+  try {
+    console.log('Fetching dispute details for ID:', disputeId);
+
+    const response = await fetch(`/api/disputes/${disputeId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!response.ok) {
+      console.warn('Failed to fetch dispute details:', response.status);
+      return null;
+    }
+
+    const apiResponse = await response.json();
+    return apiResponse.data || null;
+
+  } catch (error) {
+    console.error('Error fetching dispute details:', error);
+    return null;
+  }
+};
+
+// Check if IP has any active disputes (quick check)
+export const hasActiveDisputes = async (ipId: string): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/disputes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        options: {
+          where: {
+            targetIpId: ipId
+          },
+          pagination: {
+            limit: 1 // Just need to know if any exist
+          }
+        }
+      })
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const apiResponse = await response.json();
+    const disputes = apiResponse.data || [];
+    
+    return disputes.some((dispute: any) => 
+      dispute.status.toLowerCase() === 'active' || dispute.status.toLowerCase() === 'pending'
+    );
+
+  } catch (error) {
+    console.error('Error checking active disputes:', error);
+    return false;
+  }
+};
+
 // Function to get relationships (parents and children) for an IP asset
 export async function getIPRelationships(ipId: string): Promise<IPRelationships> {
   try {
@@ -59,67 +200,6 @@ export async function getIPRelationships(ipId: string): Promise<IPRelationships>
       totalRelationships: 0,
       ancestorCount: 0,
       descendantCount: 0
-    };
-  }
-}
-
-// Get dispute information for an IP asset
-export async function getIPDisputes(ipId: string): Promise<DisputeInfo> {
-  try {
-    console.log('Fetching disputes for IP:', ipId);
-
-    const response = await fetch('/api/disputes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        options: {
-          where: { targetIpId: ipId },
-          pagination: { limit: 100 }
-        }
-      })
-    });
-
-    if (!response.ok) {
-      console.warn('Disputes API not available or no disputes found');
-      return {
-        hasDisputes: false,
-        activeDisputes: [],
-        resolvedDisputes: [],
-        totalDisputes: 0,
-        isInitiator: false,
-        isTarget: false
-      };
-    }
-
-    const data = await response.json();
-    const disputes = data.data || [];
-
-    const activeDisputes = disputes.filter((dispute: Dispute) => 
-      dispute.status.toLowerCase() === 'active' || dispute.status.toLowerCase() === 'pending'
-    );
-    const resolvedDisputes = disputes.filter((dispute: Dispute) => 
-      dispute.status.toLowerCase() === 'resolved' || dispute.status.toLowerCase() === 'dismissed'
-    );
-
-    return {
-      hasDisputes: disputes.length > 0,
-      activeDisputes,
-      resolvedDisputes,
-      totalDisputes: disputes.length,
-      isInitiator: disputes.some((d: Dispute) => d.initiator === ipId),
-      isTarget: disputes.length > 0
-    };
-  } catch (error) {
-    console.error('Error fetching disputes:', error);
-    return {
-      hasDisputes: false,
-      activeDisputes: [],
-      resolvedDisputes: [],
-      totalDisputes: 0,
-      isInitiator: false,
-      isTarget: false
     };
   }
 }

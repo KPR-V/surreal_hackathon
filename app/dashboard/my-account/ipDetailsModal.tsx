@@ -85,10 +85,17 @@ interface IPDetailsModalProps {
 
 const StoryAPIService = {
   async getFullIPDetails(ipId: string): Promise<IPAssetDetails | null> {
+    // Remove the dummy IP handling
+
     try {
-      console.log('Fetching full IP details for:', ipId);
+      // For real IPs, try the API (commented out for now)
       
-      const response = await fetch(`/api/assets/${ipId}`);
+      const response = await fetch(`/api/ip-assets/${ipId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
       
       if (!response.ok) {
         console.error('Failed to fetch IP details:', response.status);
@@ -96,48 +103,13 @@ const StoryAPIService = {
       }
       
       const data = await response.json();
-      console.log('IP details response:', data);
+      return data;
       
-      // Transform the API response to our expected structure
-      const ipData = data.data || data;
-      
-      return {
-        basicInfo: {
-          id: ipData.id || ipId,
-          name: ipData.nftMetadata?.name || `IP Asset ${ipId.slice(0, 8)}`,
-          type: ipData.type || 'Unknown',
-          status: 'Active',
-          owner: ipData.owner || 'Unknown',
-          created: ipData.blockTimestamp ? new Date(parseInt(ipData.blockTimestamp) * 1000).toISOString() : 'Unknown',
-          lastModified: ipData.blockTimestamp ? new Date(parseInt(ipData.blockTimestamp) * 1000).toISOString() : 'Unknown'
-        },
-        technicalDetails: {
-          blockNumber: ipData.blockNumber || 'Unknown',
-          transactionHash: ipData.transactionHash || 'Unknown',
-          contractAddress: ipData.nftMetadata?.tokenContract || ipData.tokenContract || 'Unknown',
-          tokenId: ipData.nftMetadata?.tokenId || ipData.tokenId || 'Unknown',
-          chainId: ipData.nftMetadata?.chainId || ipData.chainId || 'story-aeneid',
-          metadataUri: ipData.nftMetadata?.tokenUri
-        },
-        pilInfo: {
-          attached: !!ipData.pilAttached,
-          licenseTemplate: ipData.licenseTemplate,
-          licenseTerms: ipData.licenseTerms,
-          royaltyPolicy: ipData.royaltyPolicy
-        },
-        statistics: {
-          derivatives: ipData.childrenCount || ipData.descendantCount || 0,
-          revenue: ipData.revenue || '0',
-          relationships: {
-            parents: ipData.parentCount || 0,
-            children: ipData.childrenCount || 0,
-            ancestors: ipData.ancestorCount || 0,
-            descendants: ipData.descendantCount || 0
-          }
-        }
-      };
+
+      // Return null for all IPs for now
+      return null;
     } catch (error) {
-      console.error('Error fetching IP details:', error);
+      console.error('Error fetching full IP details:', error);
       return null;
     }
   }
@@ -269,7 +241,10 @@ export const IPDetailsModal: React.FC<IPDetailsModalProps> = ({ isOpen, onClose,
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
+                            const nextSibling = target.nextElementSibling as HTMLElement;
+                            if (nextSibling) {
+                              nextSibling.classList.remove('hidden');
+                            }
                           }}
                         />
                       ) : null}

@@ -1,8 +1,15 @@
-import React from 'react'
+'use client'
+import React, { useState } from 'react'
 import { DataCard } from './dataCard'
 import { MyAccountTab } from './myAccountTab'
+import { Miscellaneous } from './miscellaneous'
+import { TransferTokenIP2IP } from './transferTokenIP2IP'
+import { CreateNFTCollectionModal } from './createNFTcollectionModal'
 
 const page = () => {
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
+
   // Sample statistics data - you can replace with actual data from your API
   const accountStats = [
     {
@@ -55,6 +62,29 @@ const page = () => {
     }
   ]
 
+  const handleTransferTokens = () => {
+    setIsTransferModalOpen(true);
+  };
+
+  const handleCreateCollection = () => {
+    setIsCollectionModalOpen(true);
+  };
+
+  const handleTransferSubmit = (data: any) => {
+    console.log('Transfer data:', data);
+    // Here you would call the actual transfer function
+  };
+
+  const handleCollectionSubmit = (data: any) => {
+    console.log('Collection data:', data);
+    // Here you would call the actual createSpgNftCollection function
+  };
+
+  const handleClaimRevenue = () => {
+    // Function to handle claimable revenue claiming
+    console.log('Claim all revenue function called');
+  };
+
   return (
     <div className="min-h-screen bg-neutral-950 p-16">
       <div className="max-w-7xl mx-auto">
@@ -63,7 +93,6 @@ const page = () => {
           <h1 className="text-4xl md:text-5xl font-light font-redHatDisplay text-white mb-8">
             My Account
           </h1>
-          
         </div>
 
         {/* Data Cards Grid */}
@@ -81,8 +110,28 @@ const page = () => {
           ))}
         </div>
 
+        {/* Miscellaneous Actions */}
+        <Miscellaneous 
+          onTransferTokens={handleTransferTokens}
+          onCreateCollection={handleCreateCollection}
+          onClaimRevenue={handleClaimRevenue}
+        />
+
         {/* Tab Component */}
         <MyAccountTab />
+
+        {/* Modals */}
+        <TransferTokenIP2IP
+          isOpen={isTransferModalOpen}
+          onClose={() => setIsTransferModalOpen(false)}
+          onTransfer={handleTransferSubmit}
+        />
+
+        <CreateNFTCollectionModal
+          isOpen={isCollectionModalOpen}
+          onClose={() => setIsCollectionModalOpen(false)}
+          onCreate={handleCollectionSubmit}
+        />
       </div>
     </div>
   )

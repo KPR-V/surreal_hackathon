@@ -8,8 +8,11 @@ export async function POST(request: NextRequest) {
   try {
     const { options } = await request.json();
 
-    // Extract pagination info
-    const pagination = options.pagination || { limit: 20 };
+    // Set default pagination to 12 items (3 rows × 4 cards)
+    const pagination = {
+      limit: 12,
+      ...options.pagination
+    };
 
     const requestBody = {
       options: {
@@ -46,7 +49,9 @@ export async function POST(request: NextRequest) {
       hasData: !!data.data,
       dataLength: data.data?.length || 0,
       hasNext: !!data.next,
-      hasPrevious: !!data.previous
+      hasPrevious: !!data.previous,
+      next: data.next,
+      previous: data.previous
     });
 
     // Return structured response with pagination info
@@ -56,7 +61,8 @@ export async function POST(request: NextRequest) {
       hasPrevious: !!data.previous,
       next: data.next,
       previous: data.previous,
-      total: data.total
+      total: data.total,
+      currentCursor: options.pagination?.after || options.pagination?.before || null
     });
   } catch (error) {
     console.error('Assets API error:', error);

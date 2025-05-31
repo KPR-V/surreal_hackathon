@@ -69,35 +69,80 @@ const MyIPContent: React.FC = () => {
     next?: string;
     previous?: string;
     currentPage: number;
+    totalPages?: number;
+    currentCursor?: string;
   }>({
     hasNext: false,
     hasPrevious: false,
-    currentPage: 1
+    currentPage: 1,
+    totalPages: 0
   });
+
+  // Keep track of page history for better navigation
+  const [pageHistory, setPageHistory] = useState<{
+    cursors: string[];
+    currentIndex: number;
+  }>({
+    cursors: [''], // Start with empty cursor for first page
+    currentIndex: 0
+  });
+
   const testAddress = "0x34a817D5723A289E125b35aAac7e763b6097d38d";
 
   useEffect(() => {
-    fetchUserIPAssets();
+    fetchUserIPAssets('initial');
   }, []);
 
-  const fetchUserIPAssets = async (cursor?: string, direction: 'next' | 'previous' | 'initial' = 'initial') => {
+  const fetchUserIPAssets = async (direction: 'next' | 'previous' | 'initial' = 'initial') => {
     try {
-      if (direction === 'next') {
+      if (direction === 'next' || direction === 'previous') {
         setLoadingMore(true);
       } else {
         setLoading(true);
       }
 
+      let cursor = '';
+      let newPageHistory = { ...pageHistory };
+
+      if (direction === 'next' && pagination.next) {
+        cursor = pagination.next;
+        // Add to page history if not already there
+        if (!pageHistory.cursors.includes(cursor)) {
+          newPageHistory.cursors.push(cursor);
+        }
+        newPageHistory.currentIndex = newPageHistory.cursors.indexOf(cursor);
+      } else if (direction === 'previous') {
+        if (pageHistory.currentIndex > 0) {
+          newPageHistory.currentIndex = pageHistory.currentIndex - 1;
+          cursor = newPageHistory.cursors[newPageHistory.currentIndex];
+        }
+      } else {
+        // Initial load
+        cursor = '';
+        newPageHistory = {
+          cursors: [''],
+          currentIndex: 0
+        };
+      }
+
       const paginationOptions = cursor 
-        ? direction === 'next' 
-          ? { after: cursor, limit: 10 }
-          : { before: cursor, limit: 10 }
-        : { limit: 10 };
+        ? { after: cursor, limit: 12 } // Always fetch 12 items (3 rows × 4 cards)
+        : { limit: 12 };
+
+      console.log('Fetching IP assets with pagination:', paginationOptions);
 
       const response: PaginatedResponse<any> = await StoryAPIService.fetchAssets(
         {},
         paginationOptions
       );
+
+      console.log('IP Assets response:', {
+        dataLength: response.data?.length || 0,
+        hasNext: response.hasNext,
+        hasPrevious: response.hasPrevious,
+        next: response.next,
+        previous: response.previous
+      });
 
       const transformedAssets: IPAsset[] = response.data.map((asset: any, index: number) => ({
         id: asset.id || `asset-${index}`,
@@ -128,19 +173,26 @@ const MyIPContent: React.FC = () => {
         transactionHash: asset.transactionHash
       }));
 
-      // Replace data instead of accumulating
       setIPAssets(transformedAssets);
+      setPageHistory(newPageHistory);
+
+      // Calculate estimated total pages (rough estimate)
+      const estimatedTotalPages = response.total ? Math.ceil(response.total / 12) : undefined;
 
       setPagination({
         hasNext: response.hasNext,
-        hasPrevious: response.hasPrevious,
+        hasPrevious: newPageHistory.currentIndex > 0,
         next: response.next,
         previous: response.previous,
-        currentPage: direction === 'next' ? pagination.currentPage + 1 : 
-                    direction === 'previous' ? pagination.currentPage - 1 : 1
+        currentPage: newPageHistory.currentIndex + 1,
+        totalPages: estimatedTotalPages,
+        currentCursor: cursor
       });
+
     } catch (err) {
       console.error('Error fetching IP assets:', err);
+      // Show error state
+      setIPAssets([]);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -148,14 +200,64 @@ const MyIPContent: React.FC = () => {
   };
 
   const goToNextPage = () => {
-    if (pagination.next && !loadingMore) {
-      fetchUserIPAssets(pagination.next, 'next');
+    if (pagination.hasNext && !loadingMore) {
+      console.log('Going to next page with cursor:', pagination.next);
+      fetchUserIPAssets('next');
     }
   };
 
   const goToPreviousPage = () => {
-    if (pagination.previous && !loadingMore) {
-      fetchUserIPAssets(pagination.previous, 'previous');
+    if (pagination.hasPrevious && !loadingMore) {
+      console.log('Going to previous page, current index:', pageHistory.currentIndex);
+      fetchUserIPAssets('previous');
+    }
+  };
+
+  const refreshCurrentPage = () => {
+    if (!loading && !loadingMore) {
+      console.log('Refreshing current page');
+      setLoading(true);
+      const currentCursor = pageHistory.cursors[pageHistory.currentIndex];
+      
+      const paginationOptions = currentCursor 
+        ? { after: currentCursor, limit: 12 }
+        : { limit: 12 };
+
+      StoryAPIService.fetchAssets({}, paginationOptions)
+        .then(response => {
+          const transformedAssets: IPAsset[] = response.data.map((asset: any, index: number) => ({
+            id: asset.id || `asset-${index}`,
+            name: asset.nftMetadata?.name || `IP Asset ${index + 1}`,
+            type: determineAssetType(asset.nftMetadata?.tokenUri),
+            status: 'Active',
+            pilAttached: !!asset.pilAttached,
+            revenue: '0.00 ETH',
+            derivatives: asset.childrenCount || 0,
+            image: asset.nftMetadata?.imageUrl || '',
+            ipId: asset.id,
+            tokenContract: asset.nftMetadata?.tokenContract || asset.tokenContract,
+            tokenId: asset.nftMetadata?.tokenId || asset.tokenId,
+            blockNumber: asset.blockNumber,
+            nftMetadata: {
+              name: asset.nftMetadata?.name || '',
+              imageUrl: asset.nftMetadata?.imageUrl || '',
+              tokenContract: asset.nftMetadata?.tokenContract || asset.tokenContract,
+              tokenId: asset.nftMetadata?.tokenId || asset.tokenId,
+              chainId: asset.nftMetadata?.chainId,
+              tokenUri: asset.nftMetadata?.tokenUri
+            },
+            ancestorCount: asset.ancestorCount || 0,
+            descendantCount: asset.descendantCount || 0,
+            childrenCount: asset.childrenCount || 0,
+            parentCount: asset.parentCount || 0,
+            blockTimestamp: asset.blockTimestamp,
+            transactionHash: asset.transactionHash
+          }));
+          
+          setIPAssets(transformedAssets);
+        })
+        .catch(err => console.error('Error refreshing page:', err))
+        .finally(() => setLoading(false));
     }
   };
 
@@ -171,70 +273,144 @@ const MyIPContent: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <div className="flex items-center space-x-3">
+          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-zinc-400">Loading IP assets...</span>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header with page info and refresh */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-light text-white">My IP Assets</h2>
-        <div className="text-sm text-zinc-400">
-          Page {pagination.currentPage} • {ipAssets.length} assets
+        <div className="flex items-center space-x-4">
+          <h2 className="text-xl font-light text-white">My IP Assets</h2>
+          <div className="text-sm text-zinc-400">
+            Page {pagination.currentPage}
+            {pagination.totalPages && ` of ${pagination.totalPages}`}
+            {ipAssets.length > 0 && ` • ${ipAssets.length} assets`}
+          </div>
         </div>
+        
+        <button
+          onClick={refreshCurrentPage}
+          disabled={loading || loadingMore}
+          className="p-2 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-lg transition-all duration-200 disabled:opacity-50"
+          title="Refresh current page"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center space-x-3">
-            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-zinc-400">Loading IP assets...</span>
+      {/* IP Assets Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 min-h-[600px]">
+        {ipAssets.length === 0 ? (
+          <div className="col-span-full text-center py-16">
+            <div className="bg-zinc-800/30 rounded-xl p-8">
+              <svg className="w-16 h-16 text-zinc-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 011-1h1m0 0V3a2 2 0 011-1h1" />
+              </svg>
+              <p className="text-zinc-400 mb-2">No IP assets found</p>
+              <p className="text-sm text-zinc-500">Your registered IP assets will appear here</p>
+              
+              {pagination.currentPage > 1 && (
+                <button
+                  onClick={() => fetchUserIPAssets('initial')}
+                  className="mt-4 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-sm transition-all duration-200"
+                >
+                  Go to First Page
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      ) : ipAssets.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-zinc-400 mb-4">No IP assets found</p>
-          <p className="text-sm text-zinc-500">Your registered IP assets will appear here</p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {ipAssets.map((asset) => (
-              <MyIPCard key={asset.id} asset={asset} />
-            ))}
-          </div>
+        ) : (
+          ipAssets.map((asset, index) => (
+            <MyIPCard 
+              key={asset.id} 
+              asset={asset} 
+              cardIndex={index}
+            />
+          ))
+        )}
+      </div>
 
-          {/* Pagination Controls */}
-          <div className="flex justify-center items-center space-x-4 pt-8">
+      {/* Enhanced Pagination Controls */}
+      {(ipAssets.length > 0 || pagination.hasPrevious) && (
+        <div className="flex justify-center items-center space-x-4 pt-8">
+          <div className="flex items-center space-x-2">
+            {/* First Page Button */}
+            <button
+              onClick={() => fetchUserIPAssets('initial')}
+              disabled={pagination.currentPage === 1 || loadingMore}
+              className="px-3 py-2 bg-zinc-800/50 hover:bg-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 text-sm"
+              title="First Page"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {/* Previous Page Button */}
             <button
               onClick={goToPreviousPage}
               disabled={!pagination.hasPrevious || loadingMore}
-              className="px-4 py-2 bg-zinc-800/50 hover:bg-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20"
+              className="px-4 py-2 bg-zinc-800/50 hover:bg-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 flex items-center space-x-2"
             >
-              Previous Page
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Previous</span>
             </button>
-            
+          </div>
+          
+          {/* Page Info */}
+          <div className="flex items-center space-x-3 px-4">
             <span className="text-sm text-zinc-400">
               Page {pagination.currentPage}
+              {pagination.totalPages && ` of ${pagination.totalPages}`}
             </span>
-            
+            {loadingMore && (
+              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {/* Next Page Button */}
             <button
               onClick={goToNextPage}
               disabled={!pagination.hasNext || loadingMore}
-              className="px-4 py-2 bg-zinc-800/50 hover:bg-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20"
+              className="px-4 py-2 bg-zinc-800/50 hover:bg-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 flex items-center space-x-2"
             >
-              {loadingMore ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Loading...</span>
-                </div>
-              ) : (
-                'Next Page'
-              )}
+              <span>Next</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </button>
+
+            {/* Auto-refresh indicator */}
+            {pagination.hasNext && (
+              <div className="text-xs text-zinc-500 px-2">
+                {ipAssets.length} loaded
+              </div>
+            )}
           </div>
-        </>
+        </div>
+      )}
+
+      {/* Loading overlay for pagination */}
+      {loadingMore && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center">
+          <div className="bg-zinc-800/90 backdrop-blur-xl border border-zinc-700/30 rounded-xl p-6 shadow-2xl">
+            <div className="flex items-center space-x-3">
+              <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-white">Loading next page...</span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -295,9 +471,9 @@ const LicenseTokensContent: React.FC = () => {
 
       const paginationOptions = cursor 
         ? direction === 'next' 
-          ? { after: cursor, limit: 10 }
-          : { before: cursor, limit: 10 }
-        : { limit: 10 };
+          ? { after: cursor, limit: 12 } // Changed to 12
+          : { before: cursor, limit: 12 } // Changed to 12
+        : { limit: 12 }; // Changed to 12
 
       const response: PaginatedResponse<any> = await StoryAPIService.fetchLicenseTokens(
         {},

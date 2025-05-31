@@ -1,9 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { getIPRelationships, getIPDisputes } from './ipEdgesService';
+import React, { useState, useEffect, useRef } from 'react';
+import { getIPRelationships, hasActiveDisputes } from './ipEdgesService';
 import { DisputeInfo } from './types';
 import { IPDetailsModal } from './ipDetailsModal';
+import { FulfillLicenseTermsModal } from './fulfillLicenseTerms';
+import { UpdateMetadataModal } from './update-metadataModal';
+import { ClaimRevenueMyIPModal } from './claimRevenuemyIP';
+import { ClaimRevenueChildIPModal } from './claimRevenueChildip';
 
 interface IPAsset {
   id: string;
@@ -42,6 +46,7 @@ interface IPAsset {
 
 interface MyIPCardProps {
   asset: IPAsset;
+  cardIndex: number; // Add this to determine tooltip position
 }
 
 interface RelationshipCounts {
@@ -49,10 +54,18 @@ interface RelationshipCounts {
   children: number;
 }
 
-export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
+export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const [isFulfillModalOpen, setIsFulfillModalOpen] = useState(false);
+  const [isUpdateMetadataModalOpen, setIsUpdateMetadataModalOpen] = useState(false);
+  const [isClaimMyIPModalOpen, setIsClaimMyIPModalOpen] = useState(false);
+  const [isClaimChildIPModalOpen, setIsClaimChildIPModalOpen] = useState(false);
   const [relationships, setRelationships] = useState<RelationshipCounts>({ parents: 0, children: 0 });
   const [loadingRelationships, setLoadingRelationships] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  
+  const manageButtonRef = useRef<HTMLButtonElement>(null);
   
   const [disputeInfo, setDisputeInfo] = useState<DisputeInfo>({
     hasDisputes: false,
@@ -69,18 +82,60 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
     fetchDisputeInfo();
   }, [asset.ipId]);
 
+  // Add this useEffect to fetch dispute data for the card
+  useEffect(() => {
+    const fetchDisputeData = async () => {
+      setLoadingDisputes(true);
+      try {
+        // Quick check for active disputes
+        const hasActiveDisputesCheck = await hasActiveDisputes(asset.ipId);
+        
+        if (hasActiveDisputesCheck) {
+          // If there are active disputes, fetch full dispute info
+          const disputeInfo = await getIPDisputes(asset.ipId);
+          setDisputeInfo(disputeInfo);
+        } else {
+          // No active disputes found
+          setDisputeInfo({
+            hasDisputes: false,
+            activeDisputes: [],
+            resolvedDisputes: [],
+            totalDisputes: 0,
+            isInitiator: false,
+            isTarget: false
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching dispute data for card:', error);
+        setDisputeInfo({
+          hasDisputes: false,
+          activeDisputes: [],
+          resolvedDisputes: [],
+          totalDisputes: 0,
+          isInitiator: false,
+          isTarget: false
+        });
+      } finally {
+        setLoadingDisputes(false);
+      }
+    };
+
+    fetchDisputeData();
+  }, [asset.ipId]);
+
   const fetchRelationshipCounts = async () => {
-    setLoadingRelationships(true);
     try {
       const relationshipData = await getIPRelationships(asset.ipId);
       setRelationships({
-        parents: relationshipData.parents.length,
-        children: relationshipData.children.length
+        parents: (relationshipData?.parents || []).length,
+        children: (relationshipData?.children || []).length
       });
     } catch (error) {
       console.error('Error fetching relationship counts:', error);
-    } finally {
-      setLoadingRelationships(false);
+      setRelationships({
+        parents: 0,
+        children: 0
+      });
     }
   };
 
@@ -121,6 +176,42 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
     detailsLoaded: asset.detailsLoaded || false
   };
 
+  const handleFulfillLicense = (data: any) => {
+    console.log('Fulfill license terms:', data);
+    // TODO: Call fulfillLicenseTerms function
+  };
+
+  const handleUpdateMetadata = (data: any) => {
+    console.log('Update metadata:', data);
+    // TODO: Call update_metadata function
+  };
+
+  const handleClaimMyIP = (data: any) => {
+    console.log('Claim my IP revenue:', data);
+    // TODO: Call claim_revenue_myip function
+  };
+
+  const handleClaimChildIP = (data: any) => {
+    console.log('Claim child IP revenue:', data);
+    // TODO: Call claim_revenue_from_childip function
+  };
+
+  const handleManageClick = () => {
+    if (manageButtonRef.current) {
+      const rect = manageButtonRef.current.getBoundingClientRect();
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      
+      // Determine if this card is on the right side (assuming 4 cards per row)
+      const isRightSide = (cardIndex % 4) >= 2;
+      
+      setTooltipPosition({
+        top: rect.top + scrollTop - 160, // Position above the button with more space
+        left: isRightSide ? rect.left - 250 : rect.left, // Shift left for right-side cards
+      });
+    }
+    setIsTooltipOpen(!isTooltipOpen);
+  };
+
   return (
     <>
       <div className="relative group">
@@ -159,14 +250,13 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
 
             {/* Dispute Badge */}
             {disputeInfo.hasDisputes && (
-              <div className="absolute bottom-3 right-3 px-2 py-1 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-lg">
-                <div className="flex items-center space-x-1">
-                  <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <span className="text-xs text-red-300 font-medium">
-                    {disputeInfo.activeDisputes.length > 0 ? 'Active Dispute' : 'Dispute'}
-                  </span>
+              <div className="absolute top-3 right-3 z-10">
+                <div className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                  disputeInfo.activeDisputes.length > 0
+                    ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                    : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                }`}>
+                  {disputeInfo.activeDisputes.length > 0 ? 'In Dispute' : 'Past Disputes'}
                 </div>
               </div>
             )}
@@ -254,25 +344,6 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
               </div>
             </div>
 
-           
-
-            {/* Dispute Warning Banner */}
-            {disputeInfo.activeDisputes.length > 0 && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-medium text-red-300">Active Dispute</p>
-                    <p className="text-xs text-red-400">
-                      {disputeInfo.activeDisputes.length} ongoing dispute{disputeInfo.activeDisputes.length > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Actions */}
             <div className="flex space-x-2">
               <button 
@@ -281,19 +352,196 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset }) => {
               >
                 View Details
               </button>
-              <button className="px-3 py-2 bg-gradient-to-r from-blue-500/10 to-pink-500/10 hover:from-blue-500/20 hover:to-pink-500/20 text-blue-400 rounded-lg text-xs font-medium transition-all duration-200 border border-blue-500/20">
-                Manage
+              
+              {/* Manage Button with Dynamic Arrow */}
+              <button 
+                ref={manageButtonRef}
+                onClick={handleManageClick}
+                className="px-3 py-2 bg-gradient-to-r from-blue-500/10 to-pink-500/10 hover:from-blue-500/20 hover:to-pink-500/20 text-blue-400 rounded-lg text-xs font-medium transition-all duration-200 border border-blue-500/20 flex items-center space-x-1"
+              >
+                <span>Manage</span>
+                <svg 
+                  className={`w-3 h-3 transition-transform duration-200 ${
+                    isTooltipOpen ? 'rotate-180' : ''
+                  }`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Details Modal */}
+      {/* Enhanced Tooltip with 4 Cards */}
+      {isTooltipOpen && (
+        <>
+          {/* Click outside to close tooltip */}
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsTooltipOpen(false)}
+          ></div>
+
+          {/* Tooltip positioned absolutely */}
+          <div 
+            className="absolute z-50 w-72"
+            style={{
+              top: tooltipPosition.top,
+              left: tooltipPosition.left,
+            }}
+          >
+            <div className="bg-zinc-800/95 backdrop-blur-xl border border-zinc-700/30 rounded-xl p-3 shadow-2xl">
+              <div className="space-y-2">
+                {/* Fulfill License Terms Card */}
+                <button
+                  onClick={() => {
+                    setIsFulfillModalOpen(true);
+                    setIsTooltipOpen(false);
+                  }}
+                  className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-orange-500/10 rounded-lg group-hover:bg-orange-500/20 transition-colors">
+                      <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white group-hover:text-orange-300 transition-colors">
+                        Fulfill License Terms
+                      </p>
+                      <p className="text-xs text-zinc-400">
+                        Pay royalties on behalf of another party
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Update Metadata Card */}
+                <button
+                  onClick={() => {
+                    setIsUpdateMetadataModalOpen(true);
+                    setIsTooltipOpen(false);
+                  }}
+                  className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-cyan-500/10 rounded-lg group-hover:bg-cyan-500/20 transition-colors">
+                      <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white group-hover:text-cyan-300 transition-colors">
+                        Update Metadata
+                      </p>
+                      <p className="text-xs text-zinc-400">
+                        Modify IP Asset metadata information
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Claim My IP Revenue Card */}
+                <button
+                  onClick={() => {
+                    setIsClaimMyIPModalOpen(true);
+                    setIsTooltipOpen(false);
+                  }}
+                  className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-green-500/10 rounded-lg group-hover:bg-green-500/20 transition-colors">
+                      <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white group-hover:text-green-300 transition-colors">
+                        Claim My IP Revenue
+                      </p>
+                      <p className="text-xs text-zinc-400">
+                        Collect revenue generated by this IP
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Claim Child IP Revenue Card */}
+                <button
+                  onClick={() => {
+                    setIsClaimChildIPModalOpen(true);
+                    setIsTooltipOpen(false);
+                  }}
+                  className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-purple-500/10 rounded-lg group-hover:bg-purple-500/20 transition-colors">
+                      <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">
+                        Claim Child IP Revenue
+                      </p>
+                      <p className="text-xs text-zinc-400">
+                        Collect revenue from derivative works
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+            
+            {/* Dynamic Tooltip Arrow based on position */}
+            <div 
+              className={`absolute w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-700/30 ${
+                (cardIndex % 4) >= 2 
+                  ? 'top-full right-6' // Arrow on right for left-positioned tooltips
+                  : 'top-full left-4'  // Arrow on left for right-positioned tooltips
+              }`}
+            ></div>
+          </div>
+        </>
+      )}
+
+      {/* All Modals */}
       <IPDetailsModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         asset={normalizedAssetForModal}
+      />
+
+      <FulfillLicenseTermsModal
+        isOpen={isFulfillModalOpen}
+        onClose={() => setIsFulfillModalOpen(false)}
+        currentIpId={asset.ipId}
+        onFulfill={handleFulfillLicense}
+      />
+
+      <UpdateMetadataModal
+        isOpen={isUpdateMetadataModalOpen}
+        onClose={() => setIsUpdateMetadataModalOpen(false)}
+        currentIpId={asset.ipId}
+        onUpdate={handleUpdateMetadata}
+      />
+
+      <ClaimRevenueMyIPModal
+        isOpen={isClaimMyIPModalOpen}
+        onClose={() => setIsClaimMyIPModalOpen(false)}
+        currentIpId={asset.ipId}
+        onClaim={handleClaimMyIP}
+      />
+
+      <ClaimRevenueChildIPModal
+        isOpen={isClaimChildIPModalOpen}
+        onClose={() => setIsClaimChildIPModalOpen(false)}
+        currentIpId={asset.ipId}
+        onClaim={handleClaimChildIP}
       />
     </>
   );

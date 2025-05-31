@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { DisputeInfo, Dispute } from './types';
-import { StoryAPIService, PaginatedResponse } from './apiService';
+import { getIPDisputes } from './ipEdgesService'; // Import the function with dummy data
+import { DisputeAssertionModal } from './disputeAssertion';
 
 interface DisputeInfoProps {
   ipId: string;
@@ -10,11 +11,6 @@ interface DisputeInfoProps {
 
 export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [allDisputes, setAllDisputes] = useState<Dispute[]>([]);
-  const [pagination, setPagination] = useState<{ hasNext: boolean; next?: string }>({
-    hasNext: false
-  });
   const [disputeData, setDisputeData] = useState<DisputeInfo>({
     hasDisputes: false,
     activeDisputes: [],
@@ -23,66 +19,60 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
     isInitiator: false,
     isTarget: false
   });
+  const [allDisputes, setAllDisputes] = useState<Dispute[]>([]);
+  const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
+  const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
 
   useEffect(() => {
     fetchDisputeInfo();
   }, [ipId]);
 
-  const fetchDisputeInfo = async (nextCursor?: string) => {
+  const fetchDisputeInfo = async () => {
     try {
-      if (nextCursor) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
-
-      const response: PaginatedResponse<any> = await StoryAPIService.fetchDisputes(
-        { where: { targetIpId: ipId } },
-        nextCursor ? { after: nextCursor, limit: 20 } : { limit: 20 }
-      );
-
-      const newDisputes = response.data || [];
-
-      if (nextCursor) {
-        setAllDisputes(prev => [...prev, ...newDisputes]);
-      } else {
-        setAllDisputes(newDisputes);
-      }
-
-      setPagination({
-        hasNext: response.hasNext,
-        next: response.next
-      });
-
-      // Update dispute data with all disputes
-      const allCurrentDisputes = nextCursor ? [...allDisputes, ...newDisputes] : newDisputes;
+      setLoading(true);
       
-      const activeDisputes = allCurrentDisputes.filter((dispute: Dispute) => 
-        dispute.status.toLowerCase() === 'active' || dispute.status.toLowerCase() === 'pending'
-      );
-      const resolvedDisputes = allCurrentDisputes.filter((dispute: Dispute) => 
-        dispute.status.toLowerCase() === 'resolved' || dispute.status.toLowerCase() === 'dismissed'
-      );
-
-      setDisputeData({
-        hasDisputes: allCurrentDisputes.length > 0,
-        activeDisputes,
-        resolvedDisputes,
-        totalDisputes: allCurrentDisputes.length,
-        isInitiator: allCurrentDisputes.some((d: Dispute) => d.initiator === ipId),
-        isTarget: allCurrentDisputes.length > 0
-      });
+      console.log('Fetching real-time dispute data for IP:', ipId);
+      
+      // Use the updated getIPDisputes function with real API
+      const disputeInfo = await getIPDisputes(ipId);
+      
+      console.log('Dispute info received:', disputeInfo);
+      
+      setDisputeData(disputeInfo);
+      
+      // Combine all disputes for the table - include ALL disputes regardless of status
+      const allCurrentDisputes = [
+        ...disputeInfo.activeDisputes,
+        ...disputeInfo.resolvedDisputes
+      ];
+      setAllDisputes(allCurrentDisputes);
+      
+      // Log dispute details for debugging
+      if (allCurrentDisputes.length > 0) {
+        console.log('Found disputes:', allCurrentDisputes.map(d => ({
+          id: d.id,
+          status: d.status,
+          initiator: d.initiator,
+          targetIpId: d.targetIpId
+        })));
+      } else {
+        console.log('No disputes found for this IP asset');
+      }
+      
     } catch (error) {
       console.error('Error fetching dispute info:', error);
+      // Set empty state on error
+      setDisputeData({
+        hasDisputes: false,
+        activeDisputes: [],
+        resolvedDisputes: [],
+        totalDisputes: 0,
+        isInitiator: false,
+        isTarget: false
+      });
+      setAllDisputes([]);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  const loadMoreDisputes = () => {
-    if (pagination.next && !loadingMore) {
-      fetchDisputeInfo(pagination.next);
     }
   };
 
@@ -96,7 +86,7 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
 
   const formatTimestamp = (timestamp: number) => {
     try {
-      return new Date(timestamp * 1000).toLocaleString();
+      return new Date(timestamp * 1000).toLocaleDateString();
     } catch {
       return 'N/A';
     }
@@ -118,130 +108,74 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
     }
   };
 
-  const renderDispute = (dispute: Dispute, index: number) => (
-    <div key={dispute.id} className="bg-zinc-700/30 rounded-lg p-4">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="text-white font-medium">Dispute #{dispute.id}</h4>
-          <span className={`inline-block px-2 py-1 rounded text-xs border ${getStatusColor(dispute.status)}`}>
-            {dispute.status}
-          </span>
-        </div>
-        <div className="text-xs text-zinc-500">
-          {formatTimestamp(dispute.disputeTimestamp)}
-        </div>
-      </div>
+  const canChallengeDispute = (dispute: Dispute) => {
+    // Only allow challenging if:
+    // 1. This IP is the target of the dispute
+    // 2. The dispute status is 'active' or 'pending'
+    // 3. No counter evidence has been submitted yet
+    return dispute.targetIpId === ipId && 
+           (dispute.status.toLowerCase() === 'active' || dispute.status.toLowerCase() === 'pending') &&
+           !dispute.counterEvidenceHash;
+  };
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-        <div>
-          <span className="text-xs text-zinc-500">Initiator:</span>
-          <button 
-            onClick={() => copyToClipboard(dispute.initiator)}
-            className="block text-sm text-orange-400 hover:text-orange-300 transition-colors font-mono"
-            title="Click to copy"
-          >
-            {truncateHash(dispute.initiator)}
-          </button>
-        </div>
+  const handleChallengeDispute = (dispute: Dispute) => {
+    setSelectedDispute(dispute);
+    setIsChallengeModalOpen(true);
+  };
 
-        <div>
-          <span className="text-xs text-zinc-500">Target Tag:</span>
-          <p className="text-sm text-white">{dispute.targetTag}</p>
-        </div>
+  const handleDisputeAssertion = (data: any) => {
+    console.log('Disputing assertion:', data);
+    // TODO: Call disputeAssertion function
+    
+    // Refresh the dispute data after submission
+    fetchDisputeInfo();
+  };
 
-        <div>
-          <span className="text-xs text-zinc-500">Current Tag:</span>
-          <p className="text-sm text-white">{dispute.currentTag}</p>
-        </div>
-      </div>
+  const getDisputeActionButton = (dispute: Dispute) => {
+    if (canChallengeDispute(dispute)) {
+      return (
+        <button
+          onClick={() => handleChallengeDispute(dispute)}
+          className="px-3 py-1.5 bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 text-red-400 hover:text-red-300 border border-red-500/30 rounded text-xs font-medium transition-all duration-200 w-full"
+        >
+          Challenge
+        </button>
+      );
+    }
 
-      {/* Evidence Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-        {dispute.evidenceHash && (
-          <div>
-            <span className="text-xs text-zinc-500">Evidence:</span>
-            <button 
-              onClick={() => copyToClipboard(dispute.evidenceHash)}
-              className="block text-sm text-purple-400 hover:text-purple-300 transition-colors font-mono"
-              title="Click to copy"
-            >
-              {truncateHash(dispute.evidenceHash)}
-            </button>
-          </div>
-        )}
-
-        {dispute.counterEvidenceHash && (
-          <div>
-            <span className="text-xs text-zinc-500">Counter Evidence:</span>
-            <button 
-              onClick={() => copyToClipboard(dispute.counterEvidenceHash)}
-              className="block text-sm text-purple-400 hover:text-purple-300 transition-colors font-mono"
-              title="Click to copy"
-            >
-              {truncateHash(dispute.counterEvidenceHash)}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Arbitration Policy */}
-      {dispute.arbitrationPolicy && (
-        <div className="mb-3">
-          <span className="text-xs text-zinc-500">Arbitration Policy:</span>
-          <button 
-            onClick={() => copyToClipboard(dispute.arbitrationPolicy)}
-            className="block text-sm text-green-400 hover:text-green-300 transition-colors font-mono"
-            title="Click to copy"
-          >
-            {truncateHash(dispute.arbitrationPolicy, 12)}
-          </button>
+    // Show appropriate status for non-challengeable disputes
+    if (dispute.counterEvidenceHash) {
+      return (
+        <div className="text-center">
+          <span className="text-xs text-cyan-400 block">Challenged</span>
+          <span className="text-xs text-zinc-500">Counter evidence submitted</span>
         </div>
-      )}
+      );
+    }
 
-      {/* UMA Link */}
-      {dispute.umaLink && (
-        <div className="mb-3">
-          <span className="text-xs text-zinc-500">UMA Link:</span>
-          <a 
-            href={dispute.umaLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-sm text-blue-400 hover:text-blue-300 transition-colors break-all"
-          >
-            {dispute.umaLink}
-          </a>
-        </div>
-      )}
+    if (dispute.status.toLowerCase() === 'resolved') {
+      return (
+        <span className="text-xs text-green-400 block text-center">Resolved</span>
+      );
+    }
 
-      {/* Transaction & Block Info */}
-      <div className="grid grid-cols-2 gap-4 text-xs">
-        <div>
-          <span className="text-zinc-500">Transaction:</span>
-          <button 
-            onClick={() => copyToClipboard(dispute.transactionHash)}
-            className="block text-zinc-400 hover:text-zinc-300 transition-colors font-mono"
-            title="Click to copy"
-          >
-            {truncateHash(dispute.transactionHash)}
-          </button>
-        </div>
-        <div>
-          <span className="text-zinc-500">Block:</span>
-          <p className="text-zinc-400">{dispute.blockNumber}</p>
-        </div>
-      </div>
+    if (dispute.status.toLowerCase() === 'dismissed') {
+      return (
+        <span className="text-xs text-yellow-400 block text-center">Dismissed</span>
+      );
+    }
 
-      {/* Liveness indicator */}
-      {dispute.liveness && (
-        <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/20 rounded">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-blue-400">Liveness Period:</span>
-            <span className="text-xs text-blue-300">{dispute.liveness} blocks</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    if (dispute.status.toLowerCase() === 'disputed') {
+      return (
+        <span className="text-xs text-orange-400 block text-center">Under Review</span>
+      );
+    }
+
+    // For any other inactive status
+    return (
+      <span className="text-xs text-zinc-500 block text-center">—</span>
+    );
+  };
 
   if (loading) {
     return (
@@ -257,98 +191,237 @@ export const DisputeInfoComponent: React.FC<DisputeInfoProps> = ({ ipId }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Dispute Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-zinc-800/30 rounded-xl p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Total Disputes</p>
-          <p className="text-2xl font-bold text-blue-400">{disputeData.totalDisputes}</p>
-        </div>
-        <div className="bg-zinc-800/30 rounded-xl p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Active Disputes</p>
-          <p className="text-2xl font-bold text-red-400">{disputeData.activeDisputes.length}</p>
-        </div>
-        <div className="bg-zinc-800/30 rounded-xl p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Resolved</p>
-          <p className="text-2xl font-bold text-green-400">{disputeData.resolvedDisputes.length}</p>
-        </div>
-        <div className="bg-zinc-800/30 rounded-xl p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Status</p>
-          <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${
-              disputeData.activeDisputes.length > 0 
-                ? 'bg-red-400' 
-                : disputeData.hasDisputes 
-                  ? 'bg-yellow-400' 
-                  : 'bg-green-400'
-            }`}></div>
-            <p className="text-sm font-medium text-white">
-              {disputeData.activeDisputes.length > 0 
-                ? 'In Dispute' 
-                : disputeData.hasDisputes 
-                  ? 'Past Disputes' 
-                  : 'No Disputes'
-              }
-            </p>
+    <>
+      <div className="space-y-6">
+        {/* Dispute Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-zinc-800/30 rounded-xl p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Total Disputes</p>
+            <p className="text-2xl font-bold text-blue-400">{disputeData.totalDisputes}</p>
+          </div>
+          <div className="bg-zinc-800/30 rounded-xl p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Active Disputes</p>
+            <p className="text-2xl font-bold text-red-400">{disputeData.activeDisputes.length}</p>
+          </div>
+          <div className="bg-zinc-800/30 rounded-xl p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Resolved</p>
+            <p className="text-2xl font-bold text-green-400">{disputeData.resolvedDisputes.length}</p>
+          </div>
+          <div className="bg-zinc-800/30 rounded-xl p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Status</p>
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${
+                disputeData.activeDisputes.length > 0 
+                  ? 'bg-red-400' 
+                  : disputeData.hasDisputes 
+                    ? 'bg-yellow-400' 
+                    : 'bg-green-400'
+              }`}></div>
+              <p className="text-sm font-medium text-white">
+                {disputeData.activeDisputes.length > 0 
+                  ? 'In Dispute' 
+                  : disputeData.hasDisputes 
+                    ? 'Past Disputes' 
+                    : 'No Disputes'
+                }
+              </p>
+            </div>
           </div>
         </div>
+
+        {/* Disputes Table */}
+        {disputeData.hasDisputes ? (
+          <div className="bg-zinc-800/30 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-700/30">
+              <h3 className="text-lg font-medium text-white flex items-center space-x-2">
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>All Disputes ({allDisputes.length})</span>
+              </h3>
+              <p className="text-xs text-zinc-500 mt-1">
+                Showing all disputes regardless of status. Scroll down to see more.
+              </p>
+            </div>
+
+            {/* Enhanced scrollable table container */}
+            <div className="max-h-[500px] overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-zinc-800 scrollbar-thumb-zinc-600 hover:scrollbar-thumb-zinc-500">
+              <table className="w-full table-fixed">
+                <thead className="bg-zinc-700/30 sticky top-0 z-10 backdrop-blur-sm">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider w-[35%]">
+                      Dispute Details
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider w-[15%]">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider w-[20%]">
+                      Initiator
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider w-[15%]">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider w-[15%]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-700/30">
+                  {allDisputes.map((dispute: Dispute, index) => (
+                    <tr 
+                      key={dispute.id} 
+                      className={`hover:bg-zinc-700/20 transition-colors ${
+                        index % 2 === 0 ? 'bg-zinc-800/10' : 'bg-zinc-800/20'
+                      }`}
+                    >
+                      <td className="px-4 py-4 w-[35%]">
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-white">#{dispute.id}</span>
+                            {canChallengeDispute(dispute) && (
+                              <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-xs font-medium">
+                                Challengeable
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-zinc-400 break-words pr-2">
+                            {dispute.data}
+                          </div>
+                          {dispute.evidenceHash && (
+                            <div className="flex items-center space-x-1">
+                              <span className="text-xs text-zinc-500">Evidence:</span>
+                              <button 
+                                onClick={() => copyToClipboard(dispute.evidenceHash)}
+                                className="text-xs text-purple-400 hover:text-purple-300 transition-colors font-mono"
+                                title="Click to copy evidence hash"
+                              >
+                                {truncateHash(dispute.evidenceHash, 6)}
+                              </button>
+                            </div>
+                          )}
+                          {dispute.counterEvidenceHash && (
+                            <div className="flex items-center space-x-1">
+                              <span className="text-xs text-zinc-500">Counter:</span>
+                              <button 
+                                onClick={() => copyToClipboard(dispute.counterEvidenceHash)}
+                                className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors font-mono"
+                                title="Click to copy counter evidence hash"
+                              >
+                                {truncateHash(dispute.counterEvidenceHash, 6)}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 w-[15%]">
+                        <div className="space-y-1">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getStatusColor(dispute.status)}`}>
+                            {dispute.status}
+                          </span>
+                          {dispute.counterEvidenceHash && (
+                            <div className="text-xs text-cyan-400">Challenged</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 w-[20%]">
+                        <div className="space-y-1">
+                          <button 
+                            onClick={() => copyToClipboard(dispute.initiator)}
+                            className="text-sm text-orange-400 hover:text-orange-300 transition-colors font-mono break-all"
+                            title="Click to copy initiator address"
+                          >
+                            {truncateHash(dispute.initiator, 8)}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 w-[15%]">
+                        <div className="space-y-1">
+                          <div className="text-sm text-zinc-300">
+                            {formatTimestamp(dispute.disputeTimestamp)}
+                          </div>
+                          {dispute.umaLink && (
+                            <a 
+                              href={dispute.umaLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center space-x-1"
+                            >
+                              <span>UMA</span>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 w-[15%]">
+                        <div className="flex flex-col space-y-1">
+                          {getDisputeActionButton(dispute)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Scroll indicator at bottom */}
+              {allDisputes.length > 5 && (
+                <div className="sticky bottom-0 bg-gradient-to-t from-zinc-800/30 to-transparent p-2 text-center">
+                  <div className="text-xs text-zinc-500 flex items-center justify-center space-x-2">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    <span>Scroll to see all {allDisputes.length} disputes</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Summary footer */}
+            <div className="px-6 py-3 border-t border-zinc-700/30 bg-zinc-800/20">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-500">
+                  Total: {allDisputes.length} disputes
+                </span>
+                <div className="flex space-x-4">
+                  <span className="text-red-400">
+                    {disputeData.activeDisputes.length} Active
+                  </span>
+                  <span className="text-green-400">
+                    {allDisputes.filter(d => d.status.toLowerCase() === 'resolved').length} Resolved
+                  </span>
+                  <span className="text-yellow-400">
+                    {allDisputes.filter(d => d.status.toLowerCase() === 'dismissed').length} Dismissed
+                  </span>
+                  <span className="text-orange-400">
+                    {allDisputes.filter(d => d.status.toLowerCase() === 'disputed').length} Under Review
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-zinc-800/30 rounded-xl p-8 text-center">
+            <svg className="w-16 h-16 text-green-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-zinc-400 mb-2">No disputes found</p>
+            <p className="text-sm text-zinc-500">This asset has not been involved in any disputes.</p>
+          </div>
+        )}
       </div>
 
-      {/* Active Disputes */}
-      {disputeData.activeDisputes.length > 0 && (
-        <div className="bg-zinc-800/30 rounded-xl p-6">
-          <h3 className="text-lg font-medium text-white mb-4 flex items-center space-x-2">
-            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-            <span>Active Disputes</span>
-          </h3>
-          <div className="space-y-4">
-            {disputeData.activeDisputes.map((dispute: Dispute, index: number) => renderDispute(dispute, index))}
-          </div>
-        </div>
-      )}
-
-      {/* Resolved Disputes */}
-      {disputeData.resolvedDisputes.length > 0 && (
-        <div className="bg-zinc-800/30 rounded-xl p-6">
-          <h3 className="text-lg font-medium text-white mb-4">Resolved Disputes</h3>
-          <div className="space-y-4">
-            {disputeData.resolvedDisputes.map((dispute: Dispute, index: number) => renderDispute(dispute, index))}
-          </div>
-        </div>
-      )}
-
-      {/* Load More Button */}
-      {pagination.hasNext && (
-        <div className="flex justify-center">
-          <button
-            onClick={loadMoreDisputes}
-            disabled={loadingMore}
-            className="px-6 py-3 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-lg transition-all duration-200 border border-zinc-700/20 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loadingMore ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span>Loading more disputes...</span>
-              </div>
-            ) : (
-              'Load More Disputes'
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* No Disputes */}
-      {!disputeData.hasDisputes && (
-        <div className="bg-zinc-800/30 rounded-xl p-8 text-center">
-          <svg className="w-16 h-16 text-green-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-zinc-400 mb-2">No disputes found</p>
-          <p className="text-sm text-zinc-500">This asset has not been involved in any disputes.</p>
-        </div>
-      )}
-    </div>
+      {/* Dispute Assertion Modal */}
+      <DisputeAssertionModal
+        isOpen={isChallengeModalOpen}
+        onClose={() => {
+          setIsChallengeModalOpen(false);
+          setSelectedDispute(null);
+        }}
+        dispute={selectedDispute}
+        currentIpId={ipId}
+        onSubmit={handleDisputeAssertion}
+      />
+    </>
   );
 };
