@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, {JSX, useState, useEffect, useRef } from 'react';
 import { IPEdge } from './types';
 import { getIPRelationships, testConnection } from './ipEdgesService';
 

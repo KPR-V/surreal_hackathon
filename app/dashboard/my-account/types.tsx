@@ -1,42 +1,33 @@
+// Consolidated Dispute interface based on Story API response
 export interface Dispute {
   id: string;
-  status: string;
-  initiator: string;
-  targetTag: string;
-  currentTag: string;
-  evidenceHash: string;
-  counterEvidenceHash: string;
   arbitrationPolicy: string;
-  disputeTimestamp: number;
-  transactionHash: string;
   blockNumber: string;
   blockTimestamp: string;
-  data: any;
-  deletedAt?: string;
-  logIndex: string;
-  targetIpId: string;
-  umaLink?: string;
-  liveness?: number;
-}
-
-export interface Dispute {
-  id: number;
-  arbitrationPolicy: string;
-  blockNumber: number;
-  blockTimestamp: number;
   counterEvidenceHash: string;
   currentTag: string;
   data: string;
+  deletedAt?: string;
   disputeTimestamp: number;
   evidenceHash: string;
   initiator: string;
   liveness: number;
-  logIndex: number;
+  logIndex: string;
   status: string;
   targetIpId: string;
   targetTag: string;
   transactionHash: string;
-  umaLink: string;
+  umaLink?: string;
+}
+
+// Add the missing DisputeInfo interface
+export interface DisputeInfo {
+  hasDisputes: boolean;
+  activeDisputes: Dispute[];
+  resolvedDisputes: Dispute[];
+  totalDisputes: number;
+  isInitiator: boolean;
+  isTarget: boolean;
 }
 
 export interface IPAsset {
@@ -174,4 +165,50 @@ export interface ComprehensiveLicensingInfo {
   derivativesAllowed: boolean;
   totalRevShare: number;
   mintingFees: string[];
+}
+
+// Additional types that might be needed
+export interface PaginatedResponse<T> {
+  data: T[];
+  hasNext: boolean;
+  hasPrevious: boolean;
+  next?: string;
+  previous?: string;
+  total?: number;
+}
+
+export interface IPAssetDetails {
+  basicInfo: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    owner: string;
+    created: string;
+    lastModified: string;
+  };
+  technicalDetails: {
+    blockNumber: string;
+    transactionHash: string;
+    contractAddress: string;
+    tokenId: string;
+    chainId: string;
+    metadataUri?: string;
+  };
+  pilInfo: {
+    attached: boolean;
+    licenseTemplate?: string;
+    licenseTerms?: string;
+    royaltyPolicy?: string;
+  };
+  statistics: {
+    derivatives: number;
+    revenue: string;
+    relationships: {
+      parents: number;
+      children: number;
+      ancestors: number;
+      descendants: number;
+    };
+  };
 }

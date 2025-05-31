@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getIPRelationships, hasActiveDisputes } from './ipEdgesService';
+import { getIPRelationships, hasActiveDisputes,getIPDisputes } from './ipEdgesService';
 import { DisputeInfo } from './types';
 import { IPDetailsModal } from './ipDetailsModal';
 import { FulfillLicenseTermsModal } from './fulfillLicenseTerms';
@@ -123,21 +123,21 @@ export const MyIPCard: React.FC<MyIPCardProps> = ({ asset, cardIndex }) => {
     fetchDisputeData();
   }, [asset.ipId]);
 
-  const fetchRelationshipCounts = async () => {
-    try {
-      const relationshipData = await getIPRelationships(asset.ipId);
-      setRelationships({
-        parents: (relationshipData?.parents || []).length,
-        children: (relationshipData?.children || []).length
-      });
-    } catch (error) {
-      console.error('Error fetching relationship counts:', error);
-      setRelationships({
-        parents: 0,
-        children: 0
-      });
-    }
-  };
+ const fetchRelationshipCounts = async () => {
+  try {
+    const relationshipData = await getIPRelationships(asset.ipId);
+    setRelationships({
+      parents: relationshipData.ancestorCount || 0,
+      children: relationshipData.descendantCount || 0
+    });
+  } catch (error) {
+    console.error('Error fetching relationship counts:', error);
+    setRelationships({
+      parents: 0,
+      children: 0
+    });
+  }
+};
 
   const fetchDisputeInfo = async () => {
     setLoadingDisputes(true);

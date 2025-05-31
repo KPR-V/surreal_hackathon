@@ -53,6 +53,7 @@
     "date-fns": "4.1.0",
     "dotenv": "^16.5.0",
     "embla-carousel-react": "8.5.1",
+    "eslint": "^9.28.0",
     "framer-motion": "latest",
     "fuse.js": "latest",
     "got": "^14.4.7",

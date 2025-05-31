@@ -6,10 +6,10 @@ const CHAIN = 'story-aeneid';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { disputeId: string } }
+  context: { params: Promise<{ disputeId: string }> }
 ) {
   try {
-    const { disputeId } = params;
+    const { disputeId } = await context.params;
 
     const response = await fetch(`${API_BASE_URL}/disputes/${disputeId}`, {
       method: 'GET',
