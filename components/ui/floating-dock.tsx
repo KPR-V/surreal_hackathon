@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Menu, X } from "lucide-react"
 import { AnimatePresence, type MotionValue, motion, useMotionValue, useSpring, useTransform } from "framer-motion"
@@ -12,7 +12,7 @@ export const FloatingDock = ({
   desktopClassName,
   mobileClassName,
 }: {
-  items: { title: string; icon: React.ReactNode; href: string }[]
+  items: { title: string; icon: React.ReactNode; href: string; onClick?: () => void }[]
   desktopClassName?: string
   mobileClassName?: string
 }) => {
@@ -28,7 +28,7 @@ const FloatingDockDesktop = ({
   items,
   className,
 }: {
-  items: { title: string; icon: React.ReactNode; href: string }[]
+  items: { title: string; icon: React.ReactNode; href: string; onClick?: () => void }[]
   className?: string
 }) => {
   const mouseX = useMotionValue(Number.POSITIVE_INFINITY)
@@ -62,11 +62,13 @@ function IconContainer({
   title,
   icon,
   href,
+  onClick,
 }: {
   mouseX: MotionValue
   title: string
   icon: React.ReactNode
   href: string
+  onClick?: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -109,35 +111,54 @@ function IconContainer({
   const isCenterItem = title === "Add IPA" || title === "My Account"
   const hoverColor = isCenterItem ? "hover:bg-blue-500/20" : "hover:bg-pink-500/20"
 
-  return (
-    <a href={href}>
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      e.preventDefault()
+      onClick()
+    }
+    // If no onClick handler, let the Link handle navigation
+  }
+
+  const content = (
+    <motion.div
+      ref={ref}
+      style={{ width, height }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={handleClick}
+      className={`relative flex aspect-square items-center justify-center rounded-full bg-zinc-950 ${hoverColor} transition-colors cursor-pointer`}
+    >
+      <AnimatePresence>
+        {hovered && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 2, x: "-50%" }}
+            className="absolute -top-8 left-1/2 w-fit rounded-md border border-zinc-600 bg-zinc-950 px-2 py-0.5 text-xs whitespace-pre text-white"
+          >
+            {title}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <motion.div
-        ref={ref}
-        style={{ width, height }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={`relative flex aspect-square items-center justify-center rounded-full bg-zinc-950 ${hoverColor} transition-colors`}
+        style={{ width: widthIcon, height: heightIcon }}
+        className="flex items-center justify-center text-white"
       >
-        <AnimatePresence>
-          {hovered && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, x: "-50%" }}
-              animate={{ opacity: 1, y: 0, x: "-50%" }}
-              exit={{ opacity: 0, y: 2, x: "-50%" }}
-              className="absolute -top-8 left-1/2 w-fit rounded-md border border-zinc-600 bg-zinc-950 px-2 py-0.5 text-xs whitespace-pre text-white"
-            >
-              {title}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <motion.div
-          style={{ width: widthIcon, height: heightIcon }}
-          className="flex items-center justify-center text-white"
-        >
-          {icon}
-        </motion.div>
+        {icon}
       </motion.div>
-    </a>
+    </motion.div>
+  )
+
+  // If there's an onClick handler (like logout), don't use Link
+  if (onClick) {
+    return content
+  }
+
+  // For navigation items, use Next.js Link
+  return (
+    <Link href={href} passHref>
+      {content}
+    </Link>
   )
 }
 
@@ -145,10 +166,18 @@ const FloatingDockMobile = ({
   items,
   className,
 }: {
-  items: { title: string; icon: React.ReactNode; href: string }[]
+  items: { title: string; icon: React.ReactNode; href: string; onClick?: () => void }[]
   className?: string
 }) => {
   const [open, setOpen] = useState(false)
+
+  const handleItemClick = (item: { title: string; icon: React.ReactNode; href: string; onClick?: () => void }) => {
+    if (item.onClick) {
+      item.onClick()
+    }
+    setOpen(false) // Close the mobile menu after clicking
+  }
+
   return (
     <div className={cn("relative block md:hidden", className)}>
       <AnimatePresence>
@@ -160,7 +189,7 @@ const FloatingDockMobile = ({
                 ? "before:bg-gradient-to-r before:from-blue-500 before:to-blue-600" 
                 : "before:bg-gradient-to-r before:from-pink-500 before:to-blue-500"
               
-              return (
+              const itemContent = (
                 <motion.div
                   key={item.title}
                   initial={{ opacity: 0, y: 10 }}
@@ -177,10 +206,9 @@ const FloatingDockMobile = ({
                   }}
                   transition={{ delay: (items.length - 1 - idx) * 0.05 }}
                 >
-                  <a
-                    href={item.href}
-                    key={item.title}
-                    className={`relative flex h-10 w-10 items-center justify-center rounded-full before:absolute before:inset-0 before:rounded-full before:p-[2px] ${borderGradient} after:absolute after:inset-[2px] after:rounded-full after:bg-zinc-950/90`}
+                  <div
+                    onClick={() => handleItemClick(item)}
+                    className={`relative flex h-10 w-10 items-center justify-center rounded-full before:absolute before:inset-0 before:rounded-full before:p-[2px] ${borderGradient} after:absolute after:inset-[2px] after:rounded-full after:bg-zinc-950/90 cursor-pointer`}
                     style={{
                       boxShadow: isCenterItem 
                         ? 'inset 0 0 8px rgba(59, 130, 246, 0.4), 0 0 12px rgba(59, 130, 246, 0.2)'
@@ -190,8 +218,20 @@ const FloatingDockMobile = ({
                     <div className={`relative z-10 h-4 w-4 ${isCenterItem ? 'text-blue-500' : 'text-pink-500'}`}>
                       {item.icon}
                     </div>
-                  </a>
+                  </div>
                 </motion.div>
+              )
+
+              // If there's an onClick handler, don't wrap with Link
+              if (item.onClick) {
+                return itemContent
+              }
+
+              // For navigation items, use Next.js Link
+              return (
+                <Link key={item.title} href={item.href} passHref>
+                  {itemContent}
+                </Link>
               )
             })}
           </motion.div>
