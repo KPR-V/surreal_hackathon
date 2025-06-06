@@ -201,11 +201,6 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
             <div className="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-lg">
               <span className="text-xs text-zinc-300 font-medium">{determineAssetType(asset.nftMetadata?.tokenUri)}</span>
             </div>
-
-            {/* Marketplace Badge */}
-            <div className="absolute top-3 right-3 px-2 py-1 bg-green-500/20 backdrop-blur-sm rounded-lg border border-green-400/30">
-              <span className="text-xs text-green-300 font-medium">Available</span>
-            </div>
           </div>
 
           <div className="p-6">

@@ -60,6 +60,7 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
   const [messageModalData, setMessageModalData] = useState<MessageModalData | null>(null);
   
   const { getStoryClient } = useStoryClient();
+  const { address } = useAccount();
 
   const pages = ['Details', 'Pricing', 'Rights', 'Terms'];
 
@@ -80,7 +81,7 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
         setDetailsLoaded(false); // Reset the loaded state
         setDetailsLoading(true);
         
-        const response = await fetch(`/api/licenses/terms/${selectedLicense.id}`);
+        const response = await fetch(`/api/licenses/ip/terms/${ipId}`);
         
         if (response.ok) {
           const data = await response.json();
@@ -101,7 +102,7 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
     };
 
     fetchLicenseDetails();
-  }, [selectedLicense?.id, isOpen]);
+  }, [ipId, isOpen]);
 
   // Also set detailsLoaded to true if no API call is needed
   useEffect(() => {
@@ -183,14 +184,20 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
   const handleLicenseAsset = async () => {
     if (!termsAccepted) return;
 
+    // Initialize variables at function scope to avoid "used before assigned" errors
+    let userAddress = '';
+    let licenseTermsId: string | number = '';
+
     try {
       setIsLoading(true);
 
       const client = await getStoryClient();
-      const userAddress = client.wallet.account.address;
+      
+      // Fix: Use the address from useAccount hook instead
+      userAddress = address || '';
       
       if (!userAddress) {
-        throw new Error('Unable to get user address from wallet');
+        throw new Error('Wallet not connected or address not available');
       }
 
       console.log('=== STARTING LICENSE MINTING PROCESS ===');
@@ -199,8 +206,6 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
       console.log('User address:', userAddress);
 
       // Extract the license terms ID properly
-      let licenseTermsId: string | number;
-      
       if (selectedLicense.termsId) {
         licenseTermsId = selectedLicense.termsId;
       } else if (selectedLicense.id) {
@@ -255,7 +260,7 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
           transactionHash: result.txHash || 'N/A',
           licenseTokenIds: Array.isArray(result.licenseTokenIds) 
             ? result.licenseTokenIds.map(id => id.toString()).join(', ') 
-            : (result.licenseTokenIds?.toString() || 'N/A'),
+            : (typeof result.licenseTokenIds === 'undefined' ? 'N/A' : String(result.licenseTokenIds)),
           licenseTermsId: String(licenseTermsId),
           actualFeePaid: feeInfo.ipTokens === 0 ? 'Free (Network fees only)' : `${feeInfo.display} + Network fees`,
           ipAssetId: ipId,
@@ -268,6 +273,20 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
             label: 'View on Explorer',
             action: () => {
               if (result.txHash) {
+                // Store the minted token info for My Account section
+                const tokenData = {
+                  licenseTokenIds: result.licenseTokenIds,
+                  transactionHash: result.txHash,
+                  ipAssetId: ipId,
+                  licenseTermsId,
+                  userAddress,
+                  timestamp: Date.now()
+                };
+                
+                const existingTokens = JSON.parse(localStorage.getItem('platformMintedTokens') || '[]');
+                existingTokens.push(tokenData);
+                localStorage.setItem('platformMintedTokens', JSON.stringify(existingTokens));
+                
                 // Changed from mainnet to Aeneid testnet explorer URL
                 window.open(`https://explorer.aeneid.story.xyz/tx/${result.txHash}`, '_blank');
               }
@@ -277,8 +296,22 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
           {
             label: 'Go to My Licenses',
             action: () => {
-              // Navigate to My Account page, License Tokens tab
-              window.location.href = '/dashboard/my-account?tab=license-tokens';
+              // Store the minted token info for My Account section
+              const tokenData = {
+                licenseTokenIds: result.licenseTokenIds,
+                transactionHash: result.txHash,
+                ipAssetId: ipId,
+                licenseTermsId,
+                userAddress,
+                timestamp: Date.now()
+              };
+              
+              const existingTokens = JSON.parse(localStorage.getItem('platformMintedTokens') || '[]');
+              existingTokens.push(tokenData);
+              localStorage.setItem('platformMintedTokens', JSON.stringify(existingTokens));
+              
+              // Navigate to My Account page, License Tokens tab with refresh parameter
+              window.location.href = '/dashboard/my-account?tab=license-tokens&refresh=true';
             },
             variant: 'primary'
           }
@@ -298,8 +331,6 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
         }
       }));
 
-     
-
     } catch (error) {
       console.error('=== LICENSE MINTING ERROR ===', error);
       
@@ -315,7 +346,7 @@ export const LicenseConfigurationModal: React.FC<LicenseConfigurationModalProps>
           errorMessage: errorMessage,
           ipAssetId: ipId,
           licenseType: getLicenseTypeName(selectedLicense),
-          userAddress: userAddress || 'Unknown', // FIX: Remove the await here
+          userAddress: userAddress || 'Unknown',
           licenseTermsId: String(licenseTermsId || 'N/A'),
           timestamp: new Date().toLocaleString(),
           troubleshooting: 'Check wallet balance and network connection'

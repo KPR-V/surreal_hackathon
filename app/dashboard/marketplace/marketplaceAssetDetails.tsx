@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LicenseConfigurationModal } from './licensingConfiguration';
 
 interface IPAsset {
@@ -116,148 +116,448 @@ const CurrencyService = {
   }
 };
 
-// Enhanced FamilyTreeVisualization with real-time data
+// Update the MarketplaceFamilyTree component to match the enhanced version from ipDetailsModal
 const MarketplaceFamilyTree: React.FC<{ currentAsset: IPAsset }> = ({ currentAsset }) => {
-  const [relationships, setRelationships] = useState<{
-    parents: number;
-    children: number;
-    ancestors: number;
-    descendants: number;
-  }>({ parents: 0, children: 0, ancestors: 0, descendants: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [familyTree, setFamilyTree] = useState<FamilyNode | null>(null);
   const [loading, setLoading] = useState(true);
-  const [relationshipData, setRelationshipData] = useState<any>(null);
+  const [relationships, setRelationships] = useState<{
+    parents: IPEdge[];
+    children: IPEdge[];
+  }>({ parents: [], children: [] });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchRelationships = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch real-time relationship data
-        const response = await fetch(`/api/ip-edges?action=relationships&ipId=${currentAsset.ipId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setRelationshipData(data);
-          
-          // Calculate relationship counts
-          const parents = data.parents?.length || 0;
-          const children = data.children?.length || 0;
-          
-          // Calculate ancestors and descendants by traversing the tree
-          const ancestors = new Set();
-          const descendants = new Set();
-          
-          // Add direct parents to ancestors
-          data.parents?.forEach((edge: any) => {
-            ancestors.add(edge.parentIpId);
-          });
-          
-          // Add direct children to descendants
-          data.children?.forEach((edge: any) => {
-            descendants.add(edge.ipId);
-          });
-          
-          setRelationships({
-            parents,
-            children,
-            ancestors: ancestors.size,
-            descendants: descendants.size
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching relationships:', error);
-      } finally {
-        setLoading(false);
+    fetchRealRelationships();
+  }, [currentAsset.ipId]);
+
+  const fetchRealRelationships = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Fetching real relationships for:', currentAsset.ipId);
+      
+      const response = await fetch(`/api/ip-edges?action=relationships&ipId=${currentAsset.ipId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch relationships: ${response.status}`);
       }
+      
+      const data = await response.json();
+      console.log('Relationship data received:', data);
+      
+      const parentEdges = data.parents || [];
+      const childEdges = data.children || [];
+      
+      setRelationships({
+        parents: parentEdges,
+        children: childEdges
+      });
+      
+      // Generate family tree with real data
+      generateRealFamilyTree(parentEdges, childEdges);
+      
+    } catch (error) {
+      console.error('Error fetching relationships:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error');
+      
+      // Generate empty tree on error
+      generateRealFamilyTree([], []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateRealFamilyTree = (parentEdges: IPEdge[], childEdges: IPEdge[]) => {
+    const tree: FamilyNode = {
+      id: currentAsset.ipId,
+      name: currentAsset.name || 'Current Asset',
+      type: 'current',
+      level: 0,
+      children: [],
+      parents: []
     };
 
-    if (currentAsset.ipId) {
-      fetchRelationships();
+    // Generate parents from real data
+    if (parentEdges.length > 0) {
+      tree.parents = parentEdges.map((edge) => ({
+        id: edge.parentIpId,
+        name: `IP Asset ${edge.parentIpId.slice(0, 8)}...`,
+        type: 'parent' as const,
+        level: -1,
+        children: [],
+        edge: edge
+      }));
     }
-  }, [currentAsset.ipId]);
+
+    // Generate children from real data
+    if (childEdges.length > 0) {
+      tree.children = childEdges.map((edge) => ({
+        id: edge.childIpId,
+        name: `IP Asset ${edge.childIpId.slice(0, 8)}...`,
+        type: 'child' as const,
+        level: 1,
+        children: [],
+        edge: edge
+      }));
+    }
+
+    setFamilyTree(tree);
+    layoutTree(tree);
+  };
+
+  const layoutTree = (tree: FamilyNode) => {
+    const width = 800;
+    const height = 500;
+    const nodeWidth = 140;
+    const nodeHeight = 60;
+    const levelHeight = 120;
+    const padding = 80;
+
+    const parentCount = tree.parents?.length || 0;
+    const childCount = tree.children?.length || 0;
+    
+    // Position current node in center
+    tree.x = width / 2;
+    tree.y = padding + levelHeight;
+
+    // Position parents above current node
+    if (tree.parents && tree.parents.length > 0) {
+      const parentSpacing = Math.min(200, (width - 100) / tree.parents.length);
+      const startX = width / 2 - ((tree.parents.length - 1) * parentSpacing) / 2;
+      
+      tree.parents.forEach((parent, index) => {
+        parent.x = startX + index * parentSpacing;
+        parent.y = padding;
+      });
+    }
+
+    // Position children below current node
+    if (tree.children && tree.children.length > 0) {
+      const childSpacing = Math.min(160, (width - 100) / tree.children.length);
+      const startX = width / 2 - ((tree.children.length - 1) * childSpacing) / 2;
+      
+      tree.children.forEach((child, index) => {
+        child.x = startX + index * childSpacing;
+        child.y = tree.y! + levelHeight;
+      });
+    }
+
+    // Calculate required height
+    const maxY = Math.max(
+      tree.y!,
+      ...(tree.parents?.map(p => p.y!) || [0]),
+      ...(tree.children?.map(c => c.y!) || [0])
+    );
+    
+    const actualHeight = maxY + nodeHeight + padding;
+    (tree as any).svgHeight = Math.max(actualHeight, 300);
+  };
+
+  const getNodeColor = (type: string) => {
+    switch (type) {
+      case 'current': return { bg: 'bg-blue-500/20', border: 'border-blue-400', text: 'text-blue-300' };
+      case 'parent': return { bg: 'bg-green-500/20', border: 'border-green-400', text: 'text-green-300' };
+      case 'child': return { bg: 'bg-orange-500/20', border: 'border-orange-400', text: 'text-orange-300' };
+      default: return { bg: 'bg-zinc-500/20', border: 'border-zinc-400', text: 'text-zinc-300' };
+    }
+  };
+
+  const truncateText = (text: string, maxLength: number = 12) => {
+    return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+  };
+
+  const renderConnections = (tree: FamilyNode) => {
+    const connections: React.JSX.Element[] = [];
+
+    // Parent connections
+    if (tree.parents) {
+      tree.parents.forEach((parent, index) => {
+        connections.push(
+          <line
+            key={`parent-connection-${index}`}
+            x1={parent.x}
+            y1={parent.y! + 30}
+            x2={tree.x}
+            y2={tree.y! - 30}
+            stroke="rgb(113 113 122 / 0.4)"
+            strokeWidth="2"
+            strokeDasharray="4,4"
+          />
+        );
+      });
+    }
+
+    // Child connections
+    if (tree.children) {
+      tree.children.forEach((child, index) => {
+        connections.push(
+          <line
+            key={`child-connection-${index}`}
+            x1={tree.x}
+            y1={tree.y! + 30}
+            x2={child.x}
+            y2={child.y! - 30}
+            stroke="rgb(113 113 122 / 0.4)"
+            strokeWidth="2"
+          />
+        );
+      });
+    }
+
+    return connections;
+  };
+
+  const renderNode = (node: FamilyNode) => {
+    const colors = getNodeColor(node.type);
+    const isSelected = selectedNode === node.id;
+    const isCurrent = node.type === 'current';
+    
+    return (
+      <g
+        key={node.id}
+        className="cursor-pointer transition-all duration-200"
+        onClick={() => setSelectedNode(selectedNode === node.id ? null : node.id)}
+      >
+        <rect
+          x={node.x! - 70}
+          y={node.y! - 30}
+          width="140"
+          height="60"
+          className={`${colors.bg} ${colors.border} ${isSelected ? 'opacity-100' : 'opacity-80'} ${
+            isCurrent ? 'stroke-2' : 'stroke-1'
+          }`}
+          fill="currentColor"
+          stroke="currentColor"
+          rx="8"
+          style={{
+            filter: isSelected ? 'drop-shadow(0 0 10px rgb(59 130 246 / 0.5))' : 'none'
+          }}
+        />
+
+        <text
+          x={node.x}
+          y={node.y! - 5}
+          textAnchor="middle"
+          className={`fill-current text-xs font-medium ${colors.text}`}
+        >
+          {truncateText(node.name)}
+        </text>
+
+        <text
+          x={node.x}
+          y={node.y! + 10}
+          textAnchor="middle"
+          className="fill-current text-xs text-zinc-500"
+        >
+          {node.type}
+        </text>
+
+        {isCurrent && (
+          <circle
+            cx={node.x! + 55}
+            cy={node.y! - 20}
+            r="4"
+            className="fill-blue-400"
+          />
+        )}
+      </g>
+    );
+  };
+
+  const getSelectedNodeDetails = () => {
+    if (!selectedNode || !familyTree) return null;
+    
+    const findNode = (node: FamilyNode): FamilyNode | null => {
+      if (node.id === selectedNode) return node;
+      
+      const fromParents = node.parents?.find(p => p.id === selectedNode);
+      if (fromParents) return fromParents;
+      
+      const fromChildren = node.children?.find(c => c.id === selectedNode);
+      if (fromChildren) return fromChildren;
+      
+      return null;
+    };
+
+    return findNode(familyTree);
+  };
+
+  const formatTimestamp = (timestamp?: string) => {
+    if (!timestamp) return 'N/A';
+    try {
+      return new Date(timestamp).toLocaleDateString();
+    } catch {
+      return 'N/A';
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-6">
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs text-zinc-400">Loading family tree...</span>
+        <div className="flex items-center space-x-3">
+          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-zinc-400">Loading family tree...</span>
         </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center py-6">
+        <div className="bg-red-900/20 rounded-lg p-4 border border-red-500/20">
+          <svg className="w-8 h-8 text-red-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <p className="text-xs text-red-400 mb-1">Failed to Load Relationships</p>
+          <p className="text-xs text-red-300">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!familyTree) {
+    return (
+      <div className="text-center py-6">
+        <div className="bg-zinc-900/40 rounded-lg p-4">
+          <svg className="w-8 h-8 text-zinc-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <p className="text-xs text-zinc-400 mb-1">No family tree data available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedNodeDetails = getSelectedNodeDetails();
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Relationship Statistics - Only Parents and Children */}
+      <div className="grid grid-cols-2 gap-3">
         <div className="bg-zinc-900/40 rounded-lg p-3 text-center">
-          <div className="text-lg font-bold text-blue-400 mb-1">{relationships.parents}</div>
+          <div className="text-lg font-bold text-green-400 mb-1">{relationships.parents.length}</div>
           <div className="text-xs text-zinc-400">Parents</div>
         </div>
         <div className="bg-zinc-900/40 rounded-lg p-3 text-center">
-          <div className="text-lg font-bold text-purple-400 mb-1">{relationships.children}</div>
+          <div className="text-lg font-bold text-orange-400 mb-1">{relationships.children.length}</div>
           <div className="text-xs text-zinc-400">Children</div>
-        </div>
-        <div className="bg-zinc-900/40 rounded-lg p-3 text-center">
-          <div className="text-lg font-bold text-green-400 mb-1">{relationships.ancestors}</div>
-          <div className="text-xs text-zinc-400">Ancestors</div>
-        </div>
-        <div className="bg-zinc-900/40 rounded-lg p-3 text-center">
-          <div className="text-lg font-bold text-yellow-400 mb-1">{relationships.descendants}</div>
-          <div className="text-xs text-zinc-400">Descendants</div>
         </div>
       </div>
 
-      {relationshipData && (relationshipData.parents?.length > 0 || relationshipData.children?.length > 0) && (
+      {/* Family Tree Visualization */}
+      {(relationships.parents.length > 0 || relationships.children.length > 0) ? (
+        <>
+          <div className="bg-zinc-900/30 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-white mb-3 flex items-center">
+              <svg className="w-4 h-4 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              Family Tree Visualization
+            </h4>
+            
+            {/* SVG Container */}
+            <div className="relative overflow-auto rounded-lg bg-zinc-900/50 border border-zinc-700/20 max-h-80">
+              <svg
+                ref={svgRef}
+                width="800"
+                height={(familyTree as any).svgHeight || 300}
+                className="w-full h-full"
+              >
+                {renderConnections(familyTree)}
+                {renderNode(familyTree)}
+                {familyTree.parents?.map(renderNode)}
+                {familyTree.children?.map(renderNode)}
+              </svg>
+            </div>
+          </div>
+
+          {/* Selected Node Details */}
+          {selectedNodeDetails && (
+            <div className="bg-zinc-900/40 rounded-lg p-4 border border-zinc-600/30">
+              <h4 className="text-sm font-medium text-white mb-2">{selectedNodeDetails.name}</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-zinc-500">Type:</span>
+                  <span className="text-zinc-300 ml-1">{selectedNodeDetails.type}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-500">ID:</span>
+                  <span className="text-zinc-300 ml-1 font-mono">{selectedNodeDetails.id.slice(0, 8)}...</span>
+                </div>
+                {selectedNodeDetails.edge && (
+                  <>
+                    <div>
+                      <span className="text-zinc-500">License:</span>
+                      <span className="text-zinc-300 ml-1">{selectedNodeDetails.edge.licenseTemplate || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500">Block:</span>
+                      <span className="text-zinc-300 ml-1">{selectedNodeDetails.edge.blockNumber}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-center py-6">
+          <div className="bg-zinc-900/40 rounded-lg p-6">
+            <svg className="w-12 h-12 text-zinc-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <p className="text-sm text-zinc-400 mb-1">Independent Asset</p>
+            <p className="text-xs text-zinc-500">This IP has no parent or child relationships</p>
+          </div>
+        </div>
+      )}
+
+      {/* Detailed Relationship Lists - unchanged */}
+      {(relationships.parents.length > 0 || relationships.children.length > 0) && (
         <div className="space-y-3">
-          {relationshipData.parents?.length > 0 && (
+          {/* Parent IPs */}
+          {relationships.parents.length > 0 && (
             <div className="bg-zinc-900/40 rounded-lg p-3">
-              <h4 className="text-xs font-medium text-blue-400 mb-2">Parent IPs ({relationshipData.parents.length})</h4>
+              <h4 className="text-xs font-medium text-green-400 mb-2">Parent IPs ({relationships.parents.length})</h4>
               <div className="space-y-1">
-                {relationshipData.parents.slice(0, 5).map((edge: any, index: number) => (
+                {relationships.parents.slice(0, 5).map((edge, index) => (
                   <div key={index} className="flex items-center justify-between text-xs">
                     <span className="text-zinc-300 font-mono">{edge.parentIpId.slice(0, 8)}...{edge.parentIpId.slice(-6)}</span>
                     <span className="text-zinc-500">Block {edge.blockNumber}</span>
                   </div>
                 ))}
-                {relationshipData.parents.length > 5 && (
+                {relationships.parents.length > 5 && (
                   <div className="text-xs text-zinc-500 text-center">
-                    +{relationshipData.parents.length - 5} more
+                    +{relationships.parents.length - 5} more
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {relationshipData.children?.length > 0 && (
+          {/* Child IPs */}
+          {relationships.children.length > 0 && (
             <div className="bg-zinc-900/40 rounded-lg p-3">
-              <h4 className="text-xs font-medium text-purple-400 mb-2">Child IPs ({relationshipData.children.length})</h4>
+              <h4 className="text-xs font-medium text-orange-400 mb-2">Child IPs ({relationships.children.length})</h4>
               <div className="space-y-1">
-                {relationshipData.children.slice(0, 5).map((edge: any, index: number) => (
+                {relationships.children.slice(0, 5).map((edge, index) => (
                   <div key={index} className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-300 font-mono">{edge.ipId.slice(0, 8)}...{edge.ipId.slice(-6)}</span>
+                    <span className="text-zinc-300 font-mono">{edge.childIpId.slice(0, 8)}...{edge.childIpId.slice(-6)}</span>
                     <span className="text-zinc-500">Block {edge.blockNumber}</span>
                   </div>
                 ))}
-                {relationshipData.children.length > 5 && (
+                {relationships.children.length > 5 && (
                   <div className="text-xs text-zinc-500 text-center">
-                    +{relationshipData.children.length - 5} more
+                    +{relationships.children.length - 5} more
                   </div>
                 )}
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {relationships.parents === 0 && relationships.children === 0 && (
-        <div className="text-center py-6">
-          <div className="bg-zinc-900/40 rounded-lg p-4">
-            <svg className="w-8 h-8 text-zinc-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            <p className="text-xs text-zinc-400 mb-1">Independent Asset</p>
-            <p className="text-xs text-zinc-500">This IP has no parent or child relationships</p>
-          </div>
         </div>
       )}
     </div>
@@ -662,7 +962,7 @@ export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = (
                       ) : null}
                       <div className={`${asset.nftMetadata?.imageUrl ? 'hidden' : ''} flex items-center justify-center w-full h-full`}>
                         <svg className="w-16 h-16 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
                     </div>
@@ -869,3 +1169,26 @@ export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = (
     </div>
   );
 };
+
+interface IPEdge {
+  id: string;
+  parentIpId: string;
+  childIpId: string;
+  licenseTemplate?: string;
+  licenseTermsId?: string;
+  blockNumber: string;
+  blockTimestamp?: string;
+  transactionHash?: string;
+}
+
+interface FamilyNode {
+  id: string;
+  name: string;
+  type: 'ancestor' | 'parent' | 'current' | 'child' | 'descendant';
+  level: number;
+  x?: number;
+  y?: number;
+  children?: FamilyNode[];
+  parents?: FamilyNode[];
+  edge?: IPEdge;
+}

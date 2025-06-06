@@ -68,18 +68,26 @@ export const FulfillLicenseTermsModal: React.FC<FulfillLicenseTermsProps> = ({
       );
 
       if (result) {
-        setFulfillmentResult(result);
-        onFulfill?.(formData);
-        
-        // Auto-close after 3 seconds on success
-        setTimeout(() => {
-          onClose();
-          setFulfillmentResult(null);
-        }, 3000);
+        // Extract the message string from the result object
+        if (result.success) {
+          setFulfillmentResult(`✅ ${result.message}${result.txHash ? ` | Transaction: ${result.txHash}` : ''}`);
+          onFulfill?.(formData);
+          
+          // Auto-close after 3 seconds on success
+          setTimeout(() => {
+            onClose();
+            setFulfillmentResult(null);
+          }, 3000);
+        } else {
+          // Handle error case
+          setFulfillmentResult(`❌ ${result.error || result.message || 'License fulfillment failed'}`);
+        }
+      } else {
+        setFulfillmentResult('❌ No response from fulfillment function');
       }
     } catch (error) {
       console.error('License fulfillment failed:', error);
-      setFulfillmentResult('License fulfillment failed. Please try again.');
+      setFulfillmentResult(`❌ License fulfillment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsFulfilling(false);
     }
