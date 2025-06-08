@@ -6,7 +6,7 @@ export const update_metadata = async (ipId: string, metadataURI: string, metadat
         ipId: ipId.startsWith("0x") ? ipId as `0x${string}` : `0x${ipId}` as `0x${string}`,
         metadataURI: metadataURI,
         metadataHash: metadataHash.startsWith("0x") ? metadataHash as `0x${string}` : `0x${metadataHash}` as `0x${string}`,
-        txOptions: { waitForTransaction: true },
+        txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
     return {
         txHash: txHash,

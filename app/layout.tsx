@@ -1,9 +1,14 @@
+"use client"
 import type React from "react"
-import type { Metadata } from "next"
+import dynamic from "next/dynamic"
 import { Inter, Red_Hat_Display, Pacifico, Satisfy } from "next/font/google"
 import "./globals.css"
-import { WalletProvider } from "../components/providers/wallet-provider"
 import { Toaster } from "../components/ui/toaster"
+
+const WalletProvider = dynamic(
+  () => import("../components/providers/wallet-provider").then(mod => mod.WalletProvider),
+  { ssr: false }
+);
 
 const inter = Inter({
   subsets: ['latin'],
@@ -28,10 +33,7 @@ const redHatDisplay = Red_Hat_Display({
   variable: "--font-red-hat-display",
 })
 
-export const metadata: Metadata = {
-  title: "MintMatrix",
-  description: "Register, manage, and trade your intellectual property assets",
-}
+
 
 export default function RootLayout({
   children,

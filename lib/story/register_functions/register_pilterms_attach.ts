@@ -10,7 +10,7 @@ const register_pilterms_attach = async (
     const response = await client.ipAsset.registerPilTermsAndAttach({
       ipId: ipid.startsWith("0x") ? ipid as `0x${string}` : `0x${ipid}` as `0x${string}`,
       licenseTermsData: [{ terms: licensetermsdata }],
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
 
     return {

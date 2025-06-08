@@ -16,7 +16,7 @@ export const transfer_ipaccount_to_ipaccount = async (amount: string,ipid: strin
           target: receiver_address.startsWith("0x")? (receiver_address as `0x${string}`): (`0x${receiver_address}` as `0x${string}`),
         },
       ],  
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
   
     return `Transferred IP Account to IP Account. Transaction hash: ${response.txHash} and transaction receipt: ${response.receipt}`;

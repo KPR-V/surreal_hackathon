@@ -28,14 +28,16 @@ export const tipIpAsset = async (
       payerIpId: zeroAddress,
       token: tokenAddress,
       amount: parseEther(amount),
-      txOptions: { waitForTransaction: true },
-      wipOptions: {
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
+      options: {
+        wipOptions: {
         useMulticallWhenPossible: false, // Disable multicall to avoid the error
         enableAutoWrapIp: true,
         enableAutoApprove: true
       },
-      erc20Options: {
-        enableAutoApprove: true
+        erc20Options: {
+          enableAutoApprove: true
+        }
       }
     });
 
@@ -99,14 +101,16 @@ export const fulfillLicenseTerms = async (
       payerIpId: formattedPayerId,
       token: tokenAddress,
       amount: parseEther(amount),
-      txOptions: { waitForTransaction: true },
-      wipOptions: {
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
+      options: {
+        wipOptions: {
         useMulticallWhenPossible: false, // Disable multicall to avoid the error
         enableAutoWrapIp: true,
         enableAutoApprove: true
       },
       erc20Options: {
-        enableAutoApprove: true
+          enableAutoApprove: true
+        }
       }
     });
 

@@ -11,7 +11,7 @@ import { StoryClient } from "@story-protocol/core-sdk";
     mintOpen: mintOpen || true,
     mintFeeRecipient: mintFeeRecipient || zeroAddress,
     contractURI: "",
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   console.log("New collection created:");
   console.log("SPG NFT Contract Address:", newCollection.spgNftContract);

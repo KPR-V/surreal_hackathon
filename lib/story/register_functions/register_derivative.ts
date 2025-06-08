@@ -11,7 +11,7 @@ const register_derivative = async (
       childIpId: childIpId.startsWith("0x") ? childIpId as `0x${string}` : `0x${childIpId}` as `0x${string}`,
       parentIpIds: parentIpIds.map((id) => id.startsWith("0x") ? id as `0x${string}` : `0x${id}` as `0x${string}`),
       licenseTermsIds: licenseTermsIds,
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
 
     return {

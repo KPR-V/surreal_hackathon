@@ -20,7 +20,7 @@ export const mint_register_pilterms = async (
       nftMetadataURI: nftcid ? `https://ipfs.io/ipfs/${nftcid}` : "",
       nftMetadataHash: nftHash ? `0x${nftHash}` : undefined,
     },
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {
     tokenId: response.tokenId,
@@ -67,7 +67,7 @@ client: StoryClient
   try {
     const response = await client.ipAsset.batchMintAndRegisterIpAssetWithPilTerms({
       args,
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
 
   const results = response.results?.map((result) => ({

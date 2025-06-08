@@ -1,4 +1,4 @@
-import { StoryClient } from "@story-protocol/core-sdk";
+import { DisputeTargetTag, StoryClient } from "@story-protocol/core-sdk";
 import { parseEther } from "viem";
 
 export const raiseDispute = async (
@@ -29,10 +29,10 @@ export const raiseDispute = async (
   const disputeResponse = await client.dispute.raiseDispute({
     targetIpId: targetIpId.startsWith("0x") ? targetIpId as `0x${string}` : `0x${targetIpId}` as `0x${string}`,
     cid: evidence_cid,
-    targetTag: targetTag,
+    targetTag: targetTag as DisputeTargetTag,
     bond: parseEther(bond),
     liveness: liveness_seconds,
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {
     txHash: disputeResponse.txHash,
@@ -47,7 +47,7 @@ export const cancelDispute = async (disputeId: number,client: StoryClient) => {
   try{
   const response = await client.dispute.cancelDispute({
     disputeId: disputeId,
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {
     txHash: response.txHash,
@@ -61,7 +61,7 @@ export const resolveDispute = async (disputeId: number,client: StoryClient) => {
   try{
   const response = await client.dispute.resolveDispute({
     disputeId: disputeId,
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {
     txHash: response.txHash,
@@ -84,7 +84,7 @@ export const disputeAssertion = async (
     ipId: ipId.startsWith("0x") ? ipId as `0x${string}` : `0x${ipId}` as `0x${string}`,
     assertionId: assertionId,
     counterEvidenceCID: counterEvidenceCID,
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {
     txHash: result.txHash,

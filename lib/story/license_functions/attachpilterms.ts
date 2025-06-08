@@ -4,7 +4,7 @@ export const attachpilterms = async (licenseTermsId: string | number | bigint,ip
     const response = await client.license.attachLicenseTerms({
       licenseTermsId: licenseTermsId,
       ipId: ipid.startsWith("0x") ? ipid as `0x${string}` : `0x${ipid}` as `0x${string}`,
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
   
     if (response.success) {

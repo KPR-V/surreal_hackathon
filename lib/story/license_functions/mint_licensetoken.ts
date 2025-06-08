@@ -63,7 +63,7 @@ export const mint_licensetoken = async (
       amount: amountFormatted,
       maxMintingFee: maxMintingFeeFormatted,
       maxRevenueShare: maxRevenueShareFormatted,
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
 
     console.log('=== MINT RESPONSE SUCCESS ===');
@@ -76,7 +76,8 @@ export const mint_licensetoken = async (
     return {
       txHash: response.txHash,
       licenseTokenIds: response.licenseTokenIds,
-      success: true
+      success: true,
+      receipt: response.receipt
     };
 
   } catch (error) {

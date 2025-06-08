@@ -50,7 +50,7 @@ export const createnewpilterms = async (transferable: boolean,client: StoryClien
   
     const response = await client.license.registerPILTerms({
       ...licenseTerms,
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
   
     return `PIL Terms registered at transaction hash ${response.txHash}, License Terms ID: ${response.licenseTermsId}`;

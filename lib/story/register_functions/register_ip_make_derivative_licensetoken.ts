@@ -26,7 +26,7 @@ const register_ip_make_derivative_licensetoken = async (
             ? (`0x${nftHash}` as `0x${string}`)
             : undefined,
         },
-        txOptions: { waitForTransaction: true },
+        txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
       });
 
     return {

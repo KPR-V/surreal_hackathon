@@ -62,41 +62,23 @@ export const claimable_revenue = async (
   client: StoryClient
 ) => {
   try{
-    const formattedVaultId = royaltyVaultIpId.startsWith("0x")
-      ? (royaltyVaultIpId as `0x${string}`)
-      : (`0x${royaltyVaultIpId}` as `0x${string}`);
-    const formattedClaimer = claimer.startsWith("0x")
-      ? (claimer as `0x${string}`)
-      : (`0x${claimer}` as `0x${string}`);
-    const formattedToken = useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
-    
-    // First check if the royalty vault exists for this IP
-    const vaultAddress = await client.royalty.getRoyaltyVaultAddress(formattedVaultId);
-    
-    // If vault address is zero address, no vault exists yet
-    if (!vaultAddress || vaultAddress === "0x0000000000000000000000000000000000000000") {
-      console.log(`No royalty vault found for IP ID: ${royaltyVaultIpId}`);
-      return {
-        amount: "0",
-        error: "No royalty vault exists for this IP"
-      };
-    }
-    
-    const amount = await client.royalty.claimableRevenue({
-      royaltyVaultIpId: formattedVaultId,
-      claimer: formattedClaimer,
-      token: formattedToken,
-    });
-    
-    return {
-      amount: amount,
-    };
-  } catch(error) {
-    console.error("Failed to calculate claimable revenue:", error instanceof Error ? error.message : String(error));
-    return {
-      amount: "0",
-      error: error instanceof Error ? error.message : String(error)
-    };
+  const formattedVaultId = royaltyVaultIpId.startsWith("0x")
+    ? (royaltyVaultIpId as `0x${string}`)
+    : (`0x${royaltyVaultIpId}` as `0x${string}`);
+  const formattedClaimer = claimer.startsWith("0x")
+    ? (claimer as `0x${string}`)
+    : (`0x${claimer}` as `0x${string}`);
+  const formattedToken =  useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
+  const amount = await client.royalty.claimableRevenue({
+    ipId: formattedVaultId,
+    claimer: formattedClaimer,
+    token: formattedToken,
+  });
+return {
+    amount: amount,
+  }
+  }catch(error){
+    console.error(error instanceof Error ? error.message : String(error));
   }
 };
 
@@ -182,7 +164,7 @@ export const transfer_to_vault = async (
     ipId: formattedIpId,
     ancestorIpId: formattedAncestor,
     token: formattedToken,
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {
     txHash: response?.txHash,

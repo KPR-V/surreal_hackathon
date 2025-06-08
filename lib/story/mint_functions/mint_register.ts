@@ -32,7 +32,7 @@ export const mintandregisterip = async (
             ipMetadataHash: `0x${ipHash}` as `0x${string}`,
           }
         : {},
-    txOptions: { waitForTransaction: true },
+    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
 
     return {

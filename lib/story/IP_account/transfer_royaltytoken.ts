@@ -11,7 +11,7 @@ export const transfer_royalty_token = async (amount: string,royaltl_contract_add
           target: receiver_address.startsWith("0x")? (receiver_address as `0x${string}`): (`0x${receiver_address}` as `0x${string}`),
         },
       ],
-      txOptions: { waitForTransaction: true },
+        txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
   
     return `Transferred royalty token. Transaction hash: ${response.txHash} and transaction receipt: ${response.receipt}`;

@@ -21,7 +21,7 @@ export const register = async (nftContract: string,tokenId: string | number | bi
         nftMetadataURI: nftcid ? `https://ipfs.io/ipfs/${nftcid}` : "",
         nftMetadataHash: nftHash ? `0x${nftHash}` as `0x${string}` : undefined,
       },
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
   
     return {
@@ -59,7 +59,7 @@ export const batchRegister = async (items: BatchRegisterItem[], client: StoryCli
   try {
     const response = await client.ipAsset.batchRegister({
       args,
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
 
   const explorerBase = "https://aeneid.explorer.story.foundation/ipa";

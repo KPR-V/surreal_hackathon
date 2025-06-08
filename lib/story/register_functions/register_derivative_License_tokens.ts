@@ -11,7 +11,7 @@ const register_derivative_License_tokens = async (
       childIpId: childIpId.startsWith("0x") ? childIpId as `0x${string}` : `0x${childIpId}` as `0x${string}`,
       licenseTokenIds: licenseTokenIds,
       maxRts: maxRts,
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
     return {
       txHash: response.txHash,

@@ -21,7 +21,7 @@ export const register_pilterms = async (
         nftMetadataURI: nftcid ? `https://ipfs.io/ipfs/${nftcid}` : "",
         nftMetadataHash: nftHash ? `0x${nftHash}` as `0x${string}` : undefined,
       },
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
 
     return {

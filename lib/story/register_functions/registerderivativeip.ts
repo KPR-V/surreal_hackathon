@@ -29,7 +29,7 @@ export const register_derivative_ip = async (
     nftMetadataHash: nftHash ? `0x${nftHash}` as `0x${string}` : undefined,
     nftMetadataURI: nftcid ? `https://ipfs.io/ipfs/${nftcid}` : "",
   },
-  txOptions: { waitForTransaction: true },
+  txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
 });
 
 return {
@@ -71,7 +71,7 @@ export const batch_register_derivative_ip = async (
   
       const response = await client.ipAsset.batchRegisterDerivative({
         args,
-        txOptions : {waitForTransaction: true},
+        txOptions : {confirmations: 5 ,retryCount: 3 , pollingInterval: 1000},
       });
   
       return {

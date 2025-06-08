@@ -27,7 +27,7 @@ const mint_registerIp_makederivative_licensetokens = async (
             : undefined,
         },
         maxRts: maxRts,
-        txOptions: { waitForTransaction: true },
+        txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
       });
 
     return {
