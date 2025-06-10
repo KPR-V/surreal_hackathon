@@ -23,7 +23,12 @@ interface MessageModalProps {
 }
 
 export const MessageModal: React.FC<MessageModalProps> = ({ isOpen, onClose, data }) => {
-  if (!isOpen || !data) return null;
+   console.log("MessageModal render called with:", { isOpen, dataExists: !!data });
+  
+  if (!isOpen || !data) {
+    console.log("MessageModal not showing because:", { isOpen, dataExists: !!data });
+    return null;
+  }
 
   const getIconAndColors = (type: string) => {
     switch (type) {

@@ -42,7 +42,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} ${redHatDisplay.variable} ${pacifico.variable} ${SatisfyFont.variable} font-sans`}>
+      <body className={`${inter.variable} ${redHatDisplay.variable} ${pacifico.variable} ${SatisfyFont.variable} font-redHatDisplay`}>
         <WalletProvider>
           {children}
           <Toaster />

@@ -1,6 +1,6 @@
-import { useStoryClient } from "../main_functions/story-network";
 import { zeroAddress, parseEther } from "viem";
 import { StoryClient, WIP_TOKEN_ADDRESS } from "@story-protocol/core-sdk";
+
 const MERC20_TOKEN_ADDRESS = "0xF2104833d386a2734a4eB3B8ad6FC6812F29E38E";
 
 export const tipIpAsset = async (
@@ -22,22 +22,20 @@ export const tipIpAsset = async (
     console.log(`Formatted receiver ID: ${formattedReceiverId}`);
     console.log(`Amount in Wei: ${parseEther(amount)}`);
     
-    // Execute the royalty payment with disabled multicall to avoid the error
+    // Execute the royalty payment with proper structure
     const response = await client.royalty.payRoyaltyOnBehalf({
       receiverIpId: formattedReceiverId,
       payerIpId: zeroAddress,
-      token: tokenAddress,
+      token: tokenAddress as `0x${string}`,
       amount: parseEther(amount),
-      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
-      options: {
-        wipOptions: {
+      txOptions: { waitForTransaction: true },
+      wipOptions: {
         useMulticallWhenPossible: false, // Disable multicall to avoid the error
         enableAutoWrapIp: true,
         enableAutoApprove: true
       },
-        erc20Options: {
-          enableAutoApprove: true
-        }
+      erc20Options: {
+        enableAutoApprove: true
       }
     });
 
@@ -45,7 +43,7 @@ export const tipIpAsset = async (
     
     return {
       success: true,
-      message: `Tipped IP Asset with ${amount} ${useWipToken ? "WIP" : "MERC20"} tokens`,
+      message: `Successfully tipped ${amount} ${useWipToken ? "WIP" : "MERC20"} tokens to the IP asset creator`,
       txHash: response.txHash || '',
       receipt: response.receipt
     };
@@ -59,7 +57,9 @@ export const tipIpAsset = async (
       errorMessage = error.message;
       
       // Handle specific error cases
-      if (errorMessage.includes("Multicall3: call failed")) {
+      if (errorMessage.includes("RoyaltyModule__ZeroReceiverVault")) {
+        errorMessage = "This IP asset cannot receive tips because it doesn't have a royalty vault configured. The creator needs to set up royalty collection first.";
+      } else if (errorMessage.includes("Multicall3: call failed")) {
         errorMessage = "Transaction failed. Please ensure you have sufficient token balance and the correct token is approved for spending.";
       } else if (errorMessage.includes("User rejected the request")) {
         errorMessage = "Transaction was rejected in your wallet.";
@@ -72,7 +72,7 @@ export const tipIpAsset = async (
     
     return {
       success: false,
-      message: "Failed to tip IP Asset",
+      message: "Failed to tip IP asset",
       error: errorMessage
     };
   }
@@ -95,22 +95,20 @@ export const fulfillLicenseTerms = async (
     // Determine which token to use
     const tokenAddress = useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
     
-    // Execute the royalty payment with disabled multicall to avoid the error
+    // Execute the royalty payment with proper structure
     const response = await client.royalty.payRoyaltyOnBehalf({
       receiverIpId: formattedReceiverId,
       payerIpId: formattedPayerId,
-      token: tokenAddress,
+      token: tokenAddress as `0x${string}`,
       amount: parseEther(amount),
-      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
-      options: {
-        wipOptions: {
+      txOptions: { waitForTransaction: true },
+      wipOptions: {
         useMulticallWhenPossible: false, // Disable multicall to avoid the error
         enableAutoWrapIp: true,
         enableAutoApprove: true
       },
       erc20Options: {
-          enableAutoApprove: true
-        }
+        enableAutoApprove: true
       }
     });
 
@@ -132,7 +130,9 @@ export const fulfillLicenseTerms = async (
       errorMessage = error.message;
       
       // Handle specific error cases
-      if (errorMessage.includes("Multicall3: call failed")) {
+      if (errorMessage.includes("RoyaltyModule__ZeroReceiverVault")) {
+        errorMessage = "This IP asset cannot receive royalty payments because it doesn't have a royalty vault configured.";
+      } else if (errorMessage.includes("Multicall3: call failed")) {
         errorMessage = "Transaction failed. Please ensure you have sufficient token balance and the correct token is approved for spending.";
       } else if (errorMessage.includes("User rejected the request")) {
         errorMessage = "Transaction was rejected in your wallet.";
