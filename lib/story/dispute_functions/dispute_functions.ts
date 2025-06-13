@@ -18,6 +18,8 @@ export const raiseDispute = async (
     "IN_DISPUTE",
   ];
 
+  
+
   if (!validTags.includes(targetTag)) {
     throw new Error(
       `Invalid dispute tag: ${targetTag}. Must be one of: ${validTags.join(
@@ -26,12 +28,26 @@ export const raiseDispute = async (
     );
   }
 
+  if (!liveness_seconds || liveness_seconds <= 0) {
+      throw new Error('Invalid liveness period. Must be greater than 0 seconds.');
+    }
+
+     console.log('Raising dispute with parameters:', {
+      targetIpId,
+      evidence_cid,
+      targetTag,
+      bond,
+      liveness_seconds,
+      bondInWei: parseEther(bond).toString()
+    });
+
+
   const disputeResponse = await client.dispute.raiseDispute({
     targetIpId: targetIpId.startsWith("0x") ? targetIpId as `0x${string}` : `0x${targetIpId}` as `0x${string}`,
     cid: evidence_cid,
     targetTag: targetTag as DisputeTargetTag,
     bond: parseEther(bond),
-    liveness: liveness_seconds,
+    liveness: BigInt(liveness_seconds),
     txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {
@@ -40,34 +56,57 @@ export const raiseDispute = async (
   };
   } catch (error) {
     console.error("Dispute failed:", error instanceof Error ? error.message : String(error));
+    throw error; // Re-throw the error so it can be handled by the calling function
   }
 };
 
-export const cancelDispute = async (disputeId: number,client: StoryClient) => {
-  try{
-  const response = await client.dispute.cancelDispute({
-    disputeId: disputeId,
-    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
-  });
-  return {
-    txHash: response.txHash,
-  };
+export const cancelDispute = async (disputeId: number, client: StoryClient) => {
+  try {
+    console.log('Cancelling dispute with ID:', disputeId);
+    
+    const response = await client.dispute.cancelDispute({
+      disputeId: disputeId,
+      data: "0x", // Add explicit empty data parameter
+      txOptions: { 
+        confirmations: 5,
+        retryCount: 3,
+        pollingInterval: 1000 
+      },
+    });
+    
+    console.log('Cancel dispute response:', response);
+    
+    return {
+      txHash: response.txHash,
+    };
   } catch (error) {
-    console.error("Dispute failed:", error instanceof Error ? error.message : String(error));
+    console.error("Cancel dispute failed:", error);
+    throw error; // Re-throw the error so it can be handled by the calling function
   }
 };
 
-export const resolveDispute = async (disputeId: number,client: StoryClient) => {
-  try{
-  const response = await client.dispute.resolveDispute({
-    disputeId: disputeId,
-    txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
-  });
-  return {
-    txHash: response.txHash,
-  };
+export const resolveDispute = async (disputeId: number, client: StoryClient) => {
+  try {
+    console.log('Resolving dispute with ID:', disputeId);
+    
+    const response = await client.dispute.resolveDispute({
+      disputeId: disputeId,
+      data: "0x", // Add explicit empty data parameter  
+      txOptions: { 
+        confirmations: 5,
+        retryCount: 3,
+        pollingInterval: 1000 
+      },
+    });
+    
+    console.log('Resolve dispute response:', response);
+    
+    return {
+      txHash: response.txHash,
+    };
   } catch (error) {
-    console.error("Dispute failed:", error instanceof Error ? error.message : String(error));
+    console.error("Resolve dispute failed:", error);
+    throw error; // Re-throw the error so it can be handled by the calling function
   }
 };
 
@@ -91,5 +130,6 @@ export const disputeAssertion = async (
   };
   } catch (error) {
     console.error("Dispute failed:", error instanceof Error ? error.message : String(error));
+    throw error; // Re-throw the error so it can be handled by the calling function
   }
 };

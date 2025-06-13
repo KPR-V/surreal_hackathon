@@ -57,6 +57,7 @@ interface MarketplaceAssetDetailsProps {
   isOpen: boolean;
   onClose: () => void;
   asset: IPAsset;
+  enhancedMetadata?: EnhancedMetadata;
 }
 
 const StoryAPIService = {
@@ -833,16 +834,59 @@ export function AssetDetails({ asset }: { asset: IPAsset }) {
 }
 
 // Add this export at the end of the file
-export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = ({ isOpen, onClose, asset }) => {
+export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = ({ 
+  isOpen, 
+  onClose, 
+  asset, 
+  enhancedMetadata 
+}) => {
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [fullDetails, setFullDetails] = useState<IPAssetDetails | null>(null);
+  const [completeMetadata, setCompleteMetadata] = useState<{
+    ipMetadata: any;
+    ipAssetData: any;
+    nftMetadata: any;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen && asset.ipId) {
       fetchFullDetails();
+      fetchCompleteMetadata();
     }
   }, [isOpen, asset.ipId]);
+
+  const fetchCompleteMetadata = async () => {
+    try {
+      const { MetadataService } = await import('../../../lib/services/metadataService');
+      const metadata = await MetadataService.getCompleteAssetMetadata(asset.ipId);
+      
+      // Ensure creators is always an array or null
+      if (metadata?.ipAssetData?.creators) {
+        if (!Array.isArray(metadata.ipAssetData.creators)) {
+          metadata.ipAssetData.creators = [metadata.ipAssetData.creators];
+        }
+        
+        metadata.ipAssetData.creators = metadata.ipAssetData.creators.map((creator: any) => {
+          if (typeof creator === 'string') {
+            return { name: creator, address: '0x0000000000000000000000000000000000000000' };
+          }
+          if (typeof creator === 'object' && creator !== null) {
+            return {
+              name: creator.name || creator.email || creator.uuid || 'Anonymous',
+              address: creator.address || '0x0000000000000000000000000000000000000000'
+            };
+          }
+          return { name: 'Anonymous Creator', address: '0x0000000000000000000000000000000000000000' };
+        });
+      }
+      
+      setCompleteMetadata(metadata);
+    } catch (error) {
+      console.error('Error fetching complete metadata:', error);
+      setCompleteMetadata(null);
+    }
+  };
 
   const fetchFullDetails = async () => {
     setLoading(true);
@@ -873,19 +917,25 @@ export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = (
 
   if (!isOpen) return null;
 
+  // Use enhanced metadata for display
+  const displayName = enhancedMetadata?.nftName || enhancedMetadata?.ipTitle || asset.name || 'Unnamed Asset';
+  const displayImage = enhancedMetadata?.nftImage || asset.nftMetadata?.imageUrl;
+  const displayDescription = enhancedMetadata?.nftDescription || enhancedMetadata?.ipDescription;
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
       
       <div className="relative h-full flex items-center justify-center p-4">
-        <div className="relative bg-zinc-950/95 backdrop-blur-xl border border-zinc-800/50 rounded-2xl w-full max-w-4xl min-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+        {/* FIXED SIZE MODAL - Max width 5xl, Fixed height */}
+        <div className="relative bg-zinc-950/95 backdrop-blur-xl border border-zinc-800/50 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl">
           
-          {/* Header */}
+          {/* Header - Fixed height */}
           <div className="flex-shrink-0 px-6 py-4 border-b border-zinc-800/50">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-2">
-                  <h2 className="text-xl font-medium text-white truncate">{asset.name || 'IP Asset Details'}</h2>
+                  <h2 className="text-lg font-medium text-white truncate">{displayName}</h2>
                   <span className="px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded text-xs">
                     {asset.type}
                   </span>
@@ -916,8 +966,8 @@ export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = (
             </div>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="px-6 pt-4 flex-shrink-0">
+          {/* Tab Navigation - Fixed height */}
+          <div className="px-6 pt-3 pb-2 flex-shrink-0">
             <div className="flex space-x-1 bg-zinc-900/30 rounded-lg p-1">
               {detailTabs.map((tab) => (
                 <button
@@ -935,231 +985,499 @@ export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = (
             </div>
           </div>
           
-          {/* Content */}
-          <div className="flex-1 overflow-auto px-6 py-4">
-            {/* Overview Tab */}
+          {/* Content - Scrollable area with fixed height */}
+          <div className="flex-1 min-h-0 px-6 pb-4">
+            {/* OVERVIEW TAB - Compact Layout */}
             {activeDetailTab === 'overview' && (
-              <div className="space-y-4">
-                {/* Asset Image and Basic Info */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* NFT Image */}
-                  <div className="lg:col-span-1">
-                    <div className="aspect-square bg-gradient-to-br from-zinc-800/50 to-zinc-700/50 rounded-lg overflow-hidden flex items-center justify-center">
-                      {asset.nftMetadata?.imageUrl ? (
-                        <img 
-                          src={asset.nftMetadata.imageUrl} 
-                          alt={asset.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            const nextSibling = target.nextElementSibling as HTMLElement;
-                            if (nextSibling) {
-                              nextSibling.classList.remove('hidden');
-                            }
-                          }}
-                        />
-                      ) : null}
-                      <div className={`${asset.nftMetadata?.imageUrl ? 'hidden' : ''} flex items-center justify-center w-full h-full`}>
-                        <svg className="w-16 h-16 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+              <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
+                <div className="space-y-4">
+                  {/* Compact Main Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Left: Media + Quick Info */}
+                    <div className="space-y-3">
+                      {/* Media Container - Enhanced Video Support */}
+                      <div className="aspect-video bg-gradient-to-br from-zinc-800/50 to-zinc-700/50 rounded-lg overflow-hidden relative group">
+                        {enhancedMetadata?.loading ? (
+                          <div className="flex items-center justify-center w-full h-full">
+                            <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="ml-2 text-zinc-400 text-sm">Loading...</span>
+                          </div>
+                        ) : (() => {
+                          // Check if the image field contains a video file (mp4, webm, mov)
+                          const imageIsVideo = displayImage && (
+                            displayImage.toLowerCase().includes('.mp4') ||
+                            displayImage.toLowerCase().includes('.webm') ||
+                            displayImage.toLowerCase().includes('.mov')
+                          );
+                          
+                          // Check animation_url for video
+                          const videoUrl = completeMetadata?.nftMetadata?.animation_url || 
+                                         (completeMetadata?.nftMetadata?.external_url?.includes('.mp4') ? completeMetadata?.nftMetadata?.external_url : null) ||
+                                         (imageIsVideo ? displayImage : null);
+                          
+                          if (videoUrl) {
+                            return (
+                              <video 
+                                src={videoUrl}
+                                className="w-full h-full object-cover"
+                                controls
+                                autoPlay
+                                muted
+                                loop
+                                preload="metadata"
+                                onError={(e) => {
+                                  console.error('Video failed to load:', e);
+                                  const target = e.target as HTMLVideoElement;
+                                  target.style.display = 'none';
+                                  const nextSibling = target.nextElementSibling as HTMLElement;
+                                  if (nextSibling) {
+                                    nextSibling.classList.remove('hidden');
+                                  }
+                                }}
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            );
+                          } else if (displayImage && !imageIsVideo) {
+                            return (
+                              <img 
+                                src={displayImage} 
+                                alt={displayName}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            );
+                          } else {
+                            return (
+                              <div className="flex items-center justify-center w-full h-full">
+                                <svg className="w-12 h-12 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                            );
+                          }
+                        })()}
+                        
+                        {/* Media Type Indicator - Enhanced */}
+                        {!enhancedMetadata?.loading && (
+                          <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded">
+                            <span className="text-xs text-white font-medium flex items-center">
+                              {(() => {
+                                const imageIsVideo = displayImage && (
+                                  displayImage.toLowerCase().includes('.mp4') ||
+                                  displayImage.toLowerCase().includes('.webm') ||
+                                  displayImage.toLowerCase().includes('.mov')
+                                );
+                                
+                                if (completeMetadata?.nftMetadata?.animation_url || imageIsVideo) {
+                                  return (
+                                    <>
+                                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z"/>
+                                      </svg>
+                                      Video
+                                    </>
+                                  );
+                                } else if (displayImage) {
+                                  return (
+                                    <>
+                                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                      Image
+                                    </>
+                                  );
+                                } else {
+                                  return 'Document';
+                                }
+                              })()}
+                            </span>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Quick Actions - Enhanced for video */}
+                      {(displayImage || completeMetadata?.nftMetadata?.animation_url) && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {completeMetadata?.nftMetadata?.external_url && (
+                            <a 
+                              href={completeMetadata.nftMetadata.external_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded text-xs font-medium transition-all duration-200 flex items-center justify-center"
+                            >
+                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                              Original
+                            </a>
+                          )}
+                          {completeMetadata?.ipMetadata?.nftTokenUri && (
+                            <a 
+                              href={completeMetadata.ipMetadata.nftTokenUri}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 rounded text-xs font-medium transition-all duration-200 flex items-center justify-center"
+                            >
+                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                              Metadata
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Right: Asset Information - Enhanced for video */}
+                    <div className="space-y-3">
+                      {/* Title and Basic Info - Enhanced */}
+                      <div className="bg-zinc-900/40 rounded-lg p-4">
+                        <h1 className="text-lg font-bold text-white mb-2 leading-tight">{displayName}</h1>
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1 mb-3">
+                          <span className="px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded text-xs font-medium">
+                            {(() => {
+                              const imageIsVideo = displayImage && (
+                                displayImage.toLowerCase().includes('.mp4') ||
+                                displayImage.toLowerCase().includes('.webm') ||
+                                displayImage.toLowerCase().includes('.mov')
+                              );
+                              
+                              if (completeMetadata?.nftMetadata?.animation_url || imageIsVideo) return 'Video NFT';
+                              if (displayImage) return 'Image NFT';
+                              return 'Digital Asset';
+                            })()}
+                          </span>
+                          <span className="px-2 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded text-xs font-medium">
+                            Available
+                          </span>
+                        </div>
+
+                        {/* Description - Compact */}
+                        {displayDescription && (
+                          <div className="mb-3">
+                            <div className="max-h-24 overflow-y-auto bg-zinc-800/30 rounded p-2 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
+                              <p className="text-xs text-zinc-300 leading-relaxed">
+                                {displayDescription}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Creators - Compact */}
+                      {(completeMetadata?.ipAssetData?.creators || completeMetadata?.nftMetadata?.properties?.creator) && (
+                        <div className="bg-zinc-900/40 rounded-lg p-3">
+                          <h4 className="text-sm font-medium text-white mb-2 flex items-center">
+                            <svg className="w-4 h-4 mr-1 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Creators
+                          </h4>
+                          <div className="space-y-2 max-h-20 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">
+                            {completeMetadata?.ipAssetData?.creators && Array.isArray(completeMetadata.ipAssetData.creators) ? (
+                              completeMetadata.ipAssetData.creators.slice(0, 2).map((creator: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between py-1 bg-zinc-800/30 rounded px-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-white truncate">
+                                      {typeof creator === 'string' ? creator : 
+                                       creator?.name || creator?.email || creator?.uuid || 'Anonymous Creator'}
+                                    </p>
+                                  </div>
+                                  <span className="px-1 py-0.5 bg-yellow-500/10 text-yellow-400 rounded text-xs flex-shrink-0">
+                                    {(typeof creator === 'object' && creator?.role) ? creator.role : 'Creator'}
+                                  </span>
+                                </div>
+                              ))
+                            ) : completeMetadata?.nftMetadata?.properties?.creator ? (
+                              <div className="flex items-center justify-between py-1 bg-zinc-800/30 rounded px-2">
+                                <p className="text-xs font-medium text-white truncate flex-1">
+                                  {typeof completeMetadata.nftMetadata.properties.creator === 'string' ? 
+                                   completeMetadata.nftMetadata.properties.creator : 
+                                   'Anonymous Creator'}
+                                </p>
+                                <span className="px-1 py-0.5 bg-yellow-500/10 text-yellow-400 rounded text-xs flex-shrink-0">Creator</span>
+                              </div>
+                            ) : (
+                              <div className="text-center py-2">
+                                <p className="text-xs text-zinc-500">No creator information</p>
+                              </div>
+                            )}
+                            {completeMetadata?.ipAssetData?.creators && completeMetadata.ipAssetData.creators.length > 2 && (
+                              <p className="text-xs text-zinc-500 text-center">
+                                +{completeMetadata.ipAssetData.creators.length - 2} more
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Rights - Compact */}
+                          {(completeMetadata?.ipAssetData?.commercialRights !== undefined || completeMetadata?.ipAssetData?.derivativeRights !== undefined) && (
+                            <div className="mt-2 pt-2 border-t border-zinc-700/30">
+                              <div className="grid grid-cols-2 gap-1">
+                                <div className="text-center p-1 bg-zinc-800/30 rounded">
+                                  <div className={`w-1.5 h-1.5 rounded-full mx-auto mb-1 ${completeMetadata?.ipAssetData?.commercialRights ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                  <p className="text-xs text-zinc-400">Commercial</p>
+                                </div>
+                                <div className="text-center p-1 bg-zinc-800/30 rounded">
+                                  <div className={`w-1.5 h-1.5 rounded-full mx-auto mb-1 ${completeMetadata?.ipAssetData?.derivativeRights ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                  <p className="text-xs text-zinc-400">Derivatives</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
-                  {/* Asset Details */}
-                  <div className="lg:col-span-2 space-y-4">
-                    {/* Asset Name and Description */}
-                    <div className="bg-zinc-900/40 rounded-lg p-4">
-                      <h3 className="text-lg font-medium text-white mb-2">{asset.name || 'Unnamed Asset'}</h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-zinc-400">Type:</span>
-                          <span className="text-sm text-white">{asset.type}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-zinc-400">NFT Name:</span>
-                          <span className="text-sm text-white">{asset.nftMetadata?.name || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-zinc-400">Chain:</span>
-                          <span className="text-sm text-white">{asset.nftMetadata?.chainId || 'story-aeneid'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-zinc-400">Block Number:</span>
-                          <span className="text-sm text-white font-mono">{asset.blockNumber}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Status and Core Metrics */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-zinc-900/40 rounded-lg p-3">
-                        <p className="text-xs text-zinc-500 mb-1">Status</p>
-                        <div className="inline-flex px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-400">
-                          Available
-                        </div>
-                      </div>
-                      
-                      <div className="bg-zinc-900/40 rounded-lg p-3">
-                        <p className="text-xs text-zinc-500 mb-1">Asset Type</p>
-                        <span className="text-xs text-white">
-                          {asset.nftMetadata?.tokenUri?.toLowerCase().includes('image') ? 'Image' : 
-                           asset.nftMetadata?.tokenUri?.toLowerCase().includes('video') ? 'Video' :
-                           asset.nftMetadata?.tokenUri?.toLowerCase().includes('audio') ? 'Audio' : 'Digital Asset'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Technical Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  {/* Data Sources - Compact */}
+                  <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg p-3">
+                    <h4 className="text-sm font-medium text-blue-400 mb-2 flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                       </svg>
-                      <h4 className="text-sm font-medium text-blue-400">Contract Details</h4>
+                      Data Sources
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {completeMetadata?.ipMetadata?.nftTokenUri && (
+                        <div className="flex items-center justify-between p-2 bg-zinc-800/30 rounded">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-white">NFT Metadata</p>
+                          </div>
+                          <a 
+                            href={completeMetadata.ipMetadata.nftTokenUri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded text-xs transition-colors"
+                          >
+                            View
+                          </a>
+                        </div>
+                      )}
+                      
+                      {completeMetadata?.ipMetadata?.metadataUri && (
+                        <div className="flex items-center justify-between p-2 bg-zinc-800/30 rounded">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-white">IP Metadata</p>
+                          </div>
+                          <a 
+                            href={completeMetadata.ipMetadata.metadataUri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded text-xs transition-colors"
+                          >
+                            View
+                          </a>
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-xs text-zinc-400">Contract:</span>
+                  </div>
+
+                  {/* External Resources - Compact */}
+                  {(completeMetadata?.nftMetadata?.external_url || completeMetadata?.nftMetadata?.animation_url) && (
+                    <div className="bg-zinc-900/40 rounded-lg p-3">
+                      <h4 className="text-sm font-medium text-white mb-2 flex items-center">
+                        <svg className="w-4 h-4 mr-1 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        External Links
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {completeMetadata.nftMetadata.external_url && (
+                          <a 
+                            href={completeMetadata.nftMetadata.external_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between p-2 bg-gradient-to-r from-green-500/10 to-blue-500/10 hover:from-green-500/20 hover:to-blue-500/20 border border-green-500/20 rounded transition-all duration-200 group"
+                          >
+                            <p className="text-xs font-medium text-white group-hover:text-green-300 transition-colors">Website</p>
+                            <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        )}
+                        {completeMetadata.nftMetadata.animation_url && completeMetadata.nftMetadata.animation_url !== completeMetadata.nftMetadata.external_url && (
+                          <a 
+                            href={completeMetadata.nftMetadata.animation_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between p-2 bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-500/20 rounded transition-all duration-200 group"
+                          >
+                            <p className="text-xs font-medium text-white group-hover:text-purple-300 transition-colors">Animation</p>
+                            <svg className="w-3 h-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {loading && (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-sm text-zinc-400">Loading...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Other tabs with proper scrolling */}
+            {activeDetailTab === 'family' && (
+              <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
+                <MarketplaceFamilyTree currentAsset={asset} />
+              </div>
+            )}
+
+            {activeDetailTab === 'licensing' && (
+              <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
+                <MarketplaceLicensingInfo ipId={asset.ipId} />
+              </div>
+            )}
+
+            {activeDetailTab === 'technical' && (
+              <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
+                <div className="space-y-4">
+                  <div className="bg-zinc-900/40 rounded-lg p-4">
+                    <h3 className="text-sm font-medium text-white mb-3">Technical Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-xs text-zinc-500">Block Number:</span>
+                        <p className="text-sm text-white font-mono">{asset.blockNumber}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-zinc-500">Token ID:</span>
+                        <p className="text-sm text-white font-mono">{asset.tokenId}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-zinc-500">Contract:</span>
                         <button 
                           onClick={() => copyToClipboard(asset.tokenContract)}
-                          className="text-xs text-blue-300 hover:text-blue-200 font-mono"
+                          className="block text-sm text-blue-400 hover:text-blue-300 transition-colors font-mono"
                           title="Click to copy"
                         >
                           {truncateHash(asset.tokenContract)}
                         </button>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-xs text-zinc-400">Token ID:</span>
-                        <span className="text-xs text-zinc-300 font-mono">{asset.tokenId}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                      </svg>
-                      <h4 className="text-sm font-medium text-purple-400">Blockchain Info</h4>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-xs text-zinc-400">Transaction:</span>
+                      <div>
+                        <span className="text-xs text-zinc-500">Transaction:</span>
                         <button 
                           onClick={() => copyToClipboard(asset.transactionHash)}
-                          className="text-xs text-purple-300 hover:text-purple-200 font-mono"
+                          className="block text-sm text-blue-400 hover:text-blue-300 transition-colors font-mono"
                           title="Click to copy"
                         >
                           {truncateHash(asset.transactionHash)}
                         </button>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-xs text-zinc-400">Timestamp:</span>
-                        <span className="text-xs text-zinc-300">
-                          {asset.blockTimestamp ? new Date(parseInt(asset.blockTimestamp) * 1000).toLocaleDateString() : 'N/A'}
-                        </span>
+                      {asset.blockTimestamp && (
+                        <div>
+                          <span className="text-xs text-zinc-500">Created:</span>
+                          <p className="text-sm text-white">
+                            {new Date(parseInt(asset.blockTimestamp) * 1000).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Enhanced Technical Information with metadata hashes */}
+                  {completeMetadata?.ipMetadata && (
+                    <div className="bg-zinc-900/40 rounded-lg p-4">
+                      <h3 className="text-sm font-medium text-white mb-3">Metadata Information</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {completeMetadata.ipMetadata.metadataHash && (
+                          <div>
+                            <span className="text-xs text-zinc-500">Metadata Hash:</span>
+                            <button 
+                              onClick={() => copyToClipboard(completeMetadata.ipMetadata.metadataHash)}
+                              className="block text-sm text-blue-400 hover:text-blue-300 transition-colors font-mono"
+                              title="Click to copy"
+                            >
+                              {truncateHash(completeMetadata.ipMetadata.metadataHash)}
+                            </button>
+                          </div>
+                        )}
+                        {completeMetadata.ipMetadata.nftMetadataHash && (
+                          <div>
+                            <span className="text-xs text-zinc-500">NFT Metadata Hash:</span>
+                            <button 
+                              onClick={() => copyToClipboard(completeMetadata.ipMetadata.nftMetadataHash)}
+                              className="block text-sm text-blue-400 hover:text-blue-300 transition-colors font-mono"
+                              title="Click to copy"
+                            >
+                              {truncateHash(completeMetadata.ipMetadata.nftMetadataHash)}
+                            </button>
+                          </div>
+                        )}
+                        {completeMetadata.ipMetadata.metadataUri && (
+                          <div className="md:col-span-2">
+                            <span className="text-xs text-zinc-500">IP Metadata URI:</span>
+                            <a 
+                              href={completeMetadata.ipMetadata.metadataUri}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-sm text-blue-400 hover:text-blue-300 transition-colors break-all"
+                            >
+                              {completeMetadata.ipMetadata.metadataUri}
+                            </a>
+                          </div>
+                        )}
+                        {completeMetadata.ipMetadata.nftTokenUri && (
+                          <div className="md:col-span-2">
+                            <span className="text-xs text-zinc-500">NFT Token URI:</span>
+                            <a 
+                              href={completeMetadata.ipMetadata.nftTokenUri}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-sm text-blue-400 hover:text-blue-300 transition-colors break-all"
+                            >
+                              {completeMetadata.ipMetadata.nftTokenUri}
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                {loading && (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-sm text-zinc-400">Loading additional details...</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Family Tree Tab */}
-            {activeDetailTab === 'family' && (
-              <MarketplaceFamilyTree currentAsset={asset} />
-            )}
-
-            {/* Licensing Tab */}
-            {activeDetailTab === 'licensing' && (
-              <MarketplaceLicensingInfo ipId={asset.ipId} />
-            )}
-
-            {/* Technical Tab */}
-            {activeDetailTab === 'technical' && (
-              <div className="space-y-4">
-                <div className="bg-zinc-900/40 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-white mb-3">Technical Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-zinc-500">Block Number:</span>
-                      <p className="text-sm text-white font-mono">{asset.blockNumber}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-zinc-500">Token ID:</span>
-                      <p className="text-sm text-white font-mono">{asset.tokenId}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-zinc-500">Contract:</span>
-                      <button 
-                        onClick={() => copyToClipboard(asset.tokenContract)}
-                        className="block text-sm text-blue-400 hover:text-blue-300 transition-colors font-mono"
-                        title="Click to copy"
-                      >
-                        {truncateHash(asset.tokenContract)}
-                      </button>
-                    </div>
-                    <div>
-                      <span className="text-xs text-zinc-500">Transaction:</span>
-                      <button 
-                        onClick={() => copyToClipboard(asset.transactionHash)}
-                        className="block text-sm text-blue-400 hover:text-blue-300 transition-colors font-mono"
-                        title="Click to copy"
-                      >
-                        {truncateHash(asset.transactionHash)}
-                      </button>
-                    </div>
-                    {asset.blockTimestamp && (
-                      <div>
-                        <span className="text-xs text-zinc-500">Created:</span>
-                        <p className="text-sm text-white">
-                          {new Date(parseInt(asset.blockTimestamp) * 1000).toLocaleDateString()}
-                        </p>
+                  {/* NFT Properties & Traits - MOVED to Technical Tab */}
+                  {completeMetadata?.nftMetadata?.attributes && Array.isArray(completeMetadata.nftMetadata.attributes) && completeMetadata.nftMetadata.attributes.length > 0 && (
+                    <div className="bg-zinc-900/40 rounded-lg p-4">
+                      <h3 className="text-sm font-medium text-white mb-3 flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        NFT Properties & Traits
+                      </h3>
+                      <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">
+                        <div className="grid grid-cols-2 gap-3 pr-2">
+                          {completeMetadata.nftMetadata.attributes.map((attr: any, index: number) => (
+                            <div key={index} className="bg-gradient-to-br from-zinc-800/40 to-zinc-700/40 rounded-lg p-3 border border-zinc-700/20">
+                                                           <p className="text-xs text-zinc-500 mb-1 truncate" title={String(attr.trait_type || 'Property')}>
+                                {String(attr.trait_type || 'Property')}
+                              </p>
+                              <p className="text-sm text-white font-medium truncate" title={String(attr.value || 'N/A')}>
+                                {String(attr.value || 'N/A')}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-zinc-900/40 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-white mb-3">NFT Metadata</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-zinc-500">Name:</span>
-                      <p className="text-sm text-white">{asset.nftMetadata?.name || 'N/A'}</p>
+                      {completeMetadata.nftMetadata.attributes.length > 12 && (
+                        <div className="mt-3 text-center">
+                          <p className="text-xs text-zinc-500">
+                            Showing all {completeMetadata.nftMetadata.attributes.length} properties
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <span className="text-xs text-zinc-500">Chain:</span>
-                      <p className="text-sm text-white">{asset.nftMetadata?.chainId || 'story-aeneid'}</p>
-                    </div>
-                    {asset.nftMetadata?.tokenUri && (
-                      <div className="md:col-span-2">
-                        <span className="text-xs text-zinc-500">Token URI:</span>
-                        <a 
-                          href={asset.nftMetadata.tokenUri}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-sm text-blue-400 hover:text-blue-300 transition-colors break-all"
-                        >
-                          {asset.nftMetadata.tokenUri}
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1191,4 +1509,21 @@ interface FamilyNode {
   children?: FamilyNode[];
   parents?: FamilyNode[];
   edge?: IPEdge;
+}
+
+interface EnhancedMetadata {
+  loading: boolean;
+  nftImage?: string;
+  nftName?: string;
+  nftDescription?: string;
+  ipTitle?: string;
+  ipDescription?: string;
+  nftAttributes?: Array<{
+    trait_type: string;
+    value: string | number;
+  }>;
+  externalUrl?: string;
+  animationUrl?: string;
+  backgroundColor?: string;
+  error?: string;
 }

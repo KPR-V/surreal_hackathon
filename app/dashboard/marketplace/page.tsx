@@ -28,10 +28,16 @@ export default function MarketplacePage() {
     <div className="min-h-screen bg-neutral-950 p-16">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-light font-redHatDisplay text-white">
-            Marketplace
-          </h1>
+        <div className="flex justify-between items-start mb-12">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-light font-redHatDisplay text-white mb-6">
+              Marketplace
+            </h1>
+            {/*Subtitle*/}
+            <p className="text-gray-400 text-base font-light max-w-2xl">
+              Transform Ideas into IP Assets: Register, License, and Monetize Your Intellectual Property
+            </p>
+          </div>
           
           <button
             onClick={openAccountModal}

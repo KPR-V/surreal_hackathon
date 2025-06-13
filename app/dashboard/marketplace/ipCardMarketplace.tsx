@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MarketplaceAssetDetails } from './marketplaceAssetDetails';
 import { TipIpAssetModal } from './tipIpAsset';
 import { RaiseDisputeModal } from './raiseDispute';
+import { MetadataService } from '../../../lib/services/metadataService';
 
 interface IPAsset {
   id: string;
@@ -39,6 +40,17 @@ interface PILStatus {
   error?: string;
 }
 
+interface EnhancedMetadata {
+  loading: boolean;
+  nftImage?: string;
+  nftName?: string;
+  nftDescription?: string;
+  ipTitle?: string;
+  ipDescription?: string;
+  animationUrl?: string;
+  error?: string;
+}
+
 export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, cardIndex }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isActionsOpen, setIsActionsOpen] = useState(false);
@@ -46,7 +58,42 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [pilStatus, setPilStatus] = useState<PILStatus>({ hasPIL: false, licenseCount: 0, loading: true });
+  const [enhancedMetadata, setEnhancedMetadata] = useState<EnhancedMetadata>({ loading: true });
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Fetch enhanced metadata from IP asset metadata and NFT token URI
+  useEffect(() => {
+    const fetchEnhancedMetadata = async () => {
+      try {
+        setEnhancedMetadata(prev => ({ ...prev, loading: true }));
+
+        const { ipMetadata, ipAssetData, nftMetadata } = await MetadataService.getCompleteAssetMetadata(asset.ipId);
+        
+        console.log('Enhanced metadata fetched:', { ipMetadata, ipAssetData, nftMetadata });
+
+        setEnhancedMetadata({
+          loading: false,
+          nftImage: MetadataService.getImageUrl(nftMetadata?.image) || undefined,
+          nftName: nftMetadata?.name || undefined,
+          nftDescription: nftMetadata?.description || undefined,
+          ipTitle: ipAssetData?.title || undefined,
+          ipDescription: ipAssetData?.description || undefined,
+          animationUrl: nftMetadata?.animation_url || undefined
+        });
+
+      } catch (error) {
+        console.error('Error fetching enhanced metadata:', error);
+        setEnhancedMetadata({
+          loading: false,
+          error: 'Failed to load metadata'
+        });
+      }
+    };
+
+    if (asset.ipId) {
+      fetchEnhancedMetadata();
+    }
+  }, [asset.ipId]);
 
   // Fetch real-time PIL status
   useEffect(() => {
@@ -98,12 +145,29 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
     navigator.clipboard.writeText(text);
   };
 
-  const determineAssetType = (tokenUri?: string): string => {
+  const determineAssetType = (tokenUri?: string, metadata?: any): string => {
+    // Check if the image field contains a video file
+    if (metadata?.image && typeof metadata.image === 'string') {
+      const imageUrl = metadata.image.toLowerCase();
+      if (imageUrl.includes('.mp4') || imageUrl.includes('.webm') || imageUrl.includes('.mov')) {
+        return 'Video';
+      }
+    }
+    
+    // Check animation_url for video
+    if (metadata?.animation_url && typeof metadata.animation_url === 'string') {
+      const animationUrl = metadata.animation_url.toLowerCase();
+      if (animationUrl.includes('.mp4') || animationUrl.includes('.webm') || animationUrl.includes('.mov')) {
+        return 'Video';
+      }
+    }
+    
+    // Fallback to tokenUri check
     if (!tokenUri) return 'Digital Asset';
     const uri = tokenUri.toLowerCase();
-    if (uri.includes('image') || uri.includes('.jpg') || uri.includes('.png')) return 'Image';
-    if (uri.includes('audio') || uri.includes('.mp3')) return 'Audio';
-    if (uri.includes('video') || uri.includes('.mp4')) return 'Video';
+    if (uri.includes('video') || uri.includes('.mp4') || uri.includes('.webm') || uri.includes('.mov')) return 'Video';
+    if (uri.includes('image') || uri.includes('.jpg') || uri.includes('.png') || uri.includes('.gif')) return 'Image';
+    if (uri.includes('audio') || uri.includes('.mp3') || uri.includes('.wav')) return 'Audio';
     return 'Digital Asset';
   };
 
@@ -173,43 +237,131 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
 
   const pilStatusDisplay = getPILStatusDisplay();
 
+  // Use enhanced metadata for display
+  const displayName = enhancedMetadata.nftName || enhancedMetadata.ipTitle || asset.name || 'Unnamed Asset';
+  const displayImage = enhancedMetadata.nftImage || asset.nftMetadata?.imageUrl;
+
+  // Determine if we have a video (check image field for mp4)
+  const getMediaInfo = () => {
+    if (enhancedMetadata.loading) return { type: 'loading', url: null };
+    
+    // Check if image field contains video
+    if (displayImage && (
+      displayImage.toLowerCase().includes('.mp4') ||
+      displayImage.toLowerCase().includes('.webm') ||
+      displayImage.toLowerCase().includes('.mov')
+    )) {
+      return { type: 'video', url: displayImage };
+    }
+    
+    // Check animation_url for video
+    if (enhancedMetadata.animationUrl && (
+      enhancedMetadata.animationUrl.toLowerCase().includes('.mp4') ||
+      enhancedMetadata.animationUrl.toLowerCase().includes('.webm') ||
+      enhancedMetadata.animationUrl.toLowerCase().includes('.mov')
+    )) {
+      return { type: 'video', url: enhancedMetadata.animationUrl };
+    }
+    
+    // Otherwise it's an image or fallback
+    if (displayImage) {
+      return { type: 'image', url: displayImage };
+    }
+    
+    return { type: 'fallback', url: null };
+  };
+
+  const mediaInfo = getMediaInfo();
+
   return (
     <>
       <div className="relative group">
         <div className="relative bg-zinc-900/40 backdrop-blur-xl border border-zinc-700/20 rounded-2xl overflow-hidden hover:border-zinc-600/30 transition-all duration-300 shadow-xl hover:shadow-2xl">
-          {/* Image */}
+          {/* Enhanced Image/Video with metadata */}
           <div className="h-40 bg-gradient-to-br from-zinc-800/50 to-zinc-700/50 flex items-center justify-center relative overflow-hidden">
-            {asset.nftMetadata?.imageUrl ? (
+            {mediaInfo.type === 'loading' ? (
+              <div className="flex items-center justify-center w-full h-full">
+                <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : mediaInfo.type === 'video' && mediaInfo.url ? (
+              <video 
+                src={mediaInfo.url}
+                className="w-full h-full object-cover"
+                controls
+                muted
+                loop
+                preload="metadata"
+                onError={(e) => {
+                  console.error('Video failed to load:', e);
+                  const target = e.target as HTMLVideoElement;
+                  target.style.display = 'none';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            ) : mediaInfo.type === 'image' && mediaInfo.url ? (
               <img 
-                src={asset.nftMetadata.imageUrl} 
-                alt={asset.name}
+                src={mediaInfo.url}
+                alt={displayName}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
-                  target.nextElementSibling?.classList.remove('hidden');
                 }}
               />
-            ) : null}
-            <div className={`${asset.nftMetadata?.imageUrl ? 'hidden' : ''} flex items-center justify-center w-full h-full`}>
-              <svg className="w-12 h-12 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
+            ) : (
+              <div className="flex items-center justify-center w-full h-full">
+                <svg className="w-12 h-12 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
             
             {/* Asset Type Badge */}
             <div className="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-lg">
-              <span className="text-xs text-zinc-300 font-medium">{determineAssetType(asset.nftMetadata?.tokenUri)}</span>
+              <span className="text-xs text-zinc-300 font-medium">
+                {determineAssetType(asset.nftMetadata?.tokenUri, { 
+                  image: displayImage, 
+                  animation_url: enhancedMetadata.animationUrl 
+                })}
+              </span>
             </div>
+
+            {/* Video Play Indicator */}
+            {mediaInfo.type === 'video' && (
+              <div className="absolute top-3 right-3 px-2 py-1 bg-red-500/20 backdrop-blur-sm rounded-lg border border-red-500/30">
+                <span className="text-xs text-red-300 font-medium flex items-center">
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                  Video
+                </span>
+              </div>
+            )}
+
+            {/* Metadata Loading Indicator */}
+            {enhancedMetadata.loading && (
+              <div className="absolute top-3 right-3 px-2 py-1 bg-blue-500/20 backdrop-blur-sm rounded-lg border border-blue-500/30">
+                <span className="text-xs text-blue-300 font-medium">Loading...</span>
+              </div>
+            )}
           </div>
 
           <div className="p-6">
-            {/* Header */}
+            {/* Enhanced Header with metadata */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-light text-white group-hover:text-blue-300 transition-colors duration-300 truncate">
-                  {asset.name || 'Unnamed Asset'}
+                <h3 className="text-base font-light text-white group-hover:text-blue-300 transition-colors duration-300 truncate" title={displayName}>
+                  {displayName}
                 </h3>
+                
+                {/* Show description if available */}
+                {(enhancedMetadata.nftDescription || enhancedMetadata.ipDescription) && (
+                  <p className="text-xs text-zinc-400 mt-1 line-clamp-2" title={enhancedMetadata.nftDescription || enhancedMetadata.ipDescription}>
+                    {enhancedMetadata.nftDescription || enhancedMetadata.ipDescription}
+                  </p>
+                )}
+                
                 <div className="flex items-center space-x-2 mt-2">
                   <span className="text-xs text-zinc-500">ID:</span>
                   <button 
@@ -290,7 +442,7 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
         </div>
       </div>
 
-      {/* Enhanced Actions Tooltip */}
+      {/* Enhanced Actions Tooltip - keeping existing functionality */}
       {isActionsOpen && (
         <>
           {/* Click outside to close tooltip */}
@@ -377,11 +529,12 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
         </>
       )}
 
-      {/* Asset Details Modal - Only loads data when opened */}
+      {/* Enhanced Asset Details Modal with metadata */}
       <MarketplaceAssetDetails
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         asset={asset}
+        enhancedMetadata={enhancedMetadata}
       />
 
       {/* Tip IP Asset Modal */}
@@ -390,7 +543,7 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
         onClose={() => setIsTipModalOpen(false)}
         assetId={asset.ipId}
         ipId={asset.ipId}
-        assetName={asset.name || 'Unnamed Asset'}
+        assetName={displayName}
       />
 
       {/* Raise Dispute Modal */}
@@ -399,7 +552,7 @@ export const IPCardMarketplace: React.FC<IPCardMarketplaceProps> = ({ asset, car
         onClose={() => setIsDisputeModalOpen(false)}
         assetId={asset.ipId}
         ipId={asset.ipId}
-        assetName={asset.name || 'Unnamed Asset'}
+        assetName={displayName}
       />
     </>
   );

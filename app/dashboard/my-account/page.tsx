@@ -5,12 +5,14 @@ import { MyAccountTab } from './myAccountTab'
 import { Miscellaneous } from './miscellaneous'
 import { TransferTokenIP2IP } from './transferTokenIP2IP'
 import { CreateNFTCollectionModal } from './createNFTcollectionModal'
+import { useAccountModal } from "@tomo-inc/tomo-evm-kit";
 
 const page = () => {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [userIpIds, setUserIpIds] = useState<string[]>([]); // Track user's IP assets
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { openAccountModal } = useAccountModal();
 
   // Sample statistics data - you can replace with actual data from your API
   const accountStats = [
@@ -96,17 +98,26 @@ const page = () => {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 p-16">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-light font-redHatDisplay text-white mb-8">
-            My Account
+    <div className="min-h-screen bg-neutral-950 text-white px-16 py-12">
+      {/* Header */}
+      <div className="flex justify-between items-start p-8 pb-4">
+        <div>
+          <h1 className="text-5xl font-thin text-white mb-6 font-redHatDisplay">
+            My Dashboard
           </h1>
         </div>
+        
+        <button 
+            onClick={openAccountModal} 
+            className="px-4 py-2 my-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg text-white transition-all duration-200 text-sm font-medium"
+          >
+            Account
+          </button>
+      </div>
 
-        {/* Data Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-10 mb-12">
+      {/* Data Cards Grid */}
+      <div className="px-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {accountStats.map((stat, index) => (
             <DataCard
               key={index}
@@ -119,8 +130,10 @@ const page = () => {
             />
           ))}
         </div>
+      </div>
 
-        {/* Miscellaneous Actions - Contains ClaimableRevenue */}
+      {/* Miscellaneous Actions - Contains ClaimableRevenue */}
+      <div className="px-8">
         <Miscellaneous 
           userIpIds={userIpIds}
           userAddress="0x34a817D5723A289E125b35aAac7e763b6097d38d"
@@ -128,26 +141,28 @@ const page = () => {
           onCreateCollection={handleCreateCollection}
           onClaimRevenue={handleRevenueClaimSuccess}
         />
+      </div>
 
-        {/* Tab Component */}
+      {/* Tab Component */}
+      <div className="px-8">
         <MyAccountTab 
           onIPAssetsUpdate={setUserIpIds}
           refreshTrigger={refreshTrigger}
         />
-
-        {/* Modals */}
-        <TransferTokenIP2IP
-          isOpen={isTransferModalOpen}
-          onClose={() => setIsTransferModalOpen(false)}
-          onTransfer={handleTransferSubmit}
-        />
-
-        <CreateNFTCollectionModal
-          isOpen={isCollectionModalOpen}
-          onClose={() => setIsCollectionModalOpen(false)}
-          onCreate={handleCollectionSubmit}
-        />
       </div>
+
+      {/* Modals */}
+      <TransferTokenIP2IP
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        onTransfer={handleTransferSubmit}
+      />
+
+      <CreateNFTCollectionModal
+        isOpen={isCollectionModalOpen}
+        onClose={() => setIsCollectionModalOpen(false)}
+        onCreate={handleCollectionSubmit}
+      />
     </div>
   )
 }

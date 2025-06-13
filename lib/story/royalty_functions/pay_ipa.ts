@@ -28,7 +28,7 @@ export const tipIpAsset = async (
       payerIpId: zeroAddress,
       token: tokenAddress as `0x${string}`,
       amount: parseEther(amount),
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
       wipOptions: {
         useMulticallWhenPossible: false, // Disable multicall to avoid the error
         enableAutoWrapIp: true,
@@ -101,7 +101,7 @@ export const fulfillLicenseTerms = async (
       payerIpId: formattedPayerId,
       token: tokenAddress as `0x${string}`,
       amount: parseEther(amount),
-      txOptions: { waitForTransaction: true },
+      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
       wipOptions: {
         useMulticallWhenPossible: false, // Disable multicall to avoid the error
         enableAutoWrapIp: true,
