@@ -5,7 +5,7 @@ import { PILModal } from "../../../components/ui/PILModal";
 import { mintandregisterip } from "../../../lib/story/mint_functions/mint_register";
 import { mint_register_pilterms } from "../../../lib/story/mint_functions/mint_register_pilterms";
 import { useStoryClient } from "../../../lib/story/main_functions/story-network";
-
+import {uploadFilesToPinata} from "../../../lib/story/main_functions/uploadimagetoipfs"
 interface GeneratedContent {
   id: string;
   type: "image" | "video" | "audio";
@@ -82,22 +82,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const { getStoryClient, isLoading: isClientLoading, isReady } = useStoryClient();
 
   // Upload function for IPFS
-  const uploadToIPFS = async (file: File | Blob, filename?: string): Promise<string> => {
-    const formDataToUpload = new FormData();
-    formDataToUpload.append('file', file, filename || 'content');
-
+  const uploadToIPFS = async (file: File | Blob): Promise<string> => {
     try {
-      const response = await fetch('/api/upload-to-ipfs', {
-        method: 'POST',
-        body: formDataToUpload,
-      });
+    const response = await uploadFilesToPinata([file as File]);
 
-      if (!response.ok) {
+      if (!response.cid) {
         throw new Error('Failed to upload to IPFS');
       }
 
-      const data = await response.json();
-      return `https://ipfs.io/ipfs/${data.cid}`;
+      return `https://ipfs.io/ipfs/${response.cid}`;
     } catch (error) {
       console.error('IPFS upload error:', error);
       throw error;
@@ -143,7 +136,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         filename = `generated-${content.type}-${content.id}.${content.type === 'video' ? 'mp4' : content.type === 'audio' ? 'wav' : 'png'}`;
       }
 
-      const ipfsUrl = await uploadToIPFS(blob, filename);
+      const ipfsUrl = await uploadToIPFS(blob);
       
       setFormData(prev => ({
         ...prev,

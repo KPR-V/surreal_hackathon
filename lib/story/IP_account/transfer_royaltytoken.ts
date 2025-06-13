@@ -42,7 +42,10 @@ export const transfer_royalty_token = async (
       ip_account: ipid
     });
 
-    return `Transferred royalty token. Transaction hash: ${response.txHash} and transaction receipt: ${response.receipt}`;
+    return {
+      txhash:response.txHash,
+      receipt:response?.receipt
+    };
     
   } catch (error) {
     console.error("Royalty token transfer failed:", {

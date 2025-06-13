@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-
+import {uploadFilesToPinata} from "../../../lib/story/main_functions/uploadimagetoipfs"
 interface MetaDataModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -56,21 +56,14 @@ export const MetaDataModal: React.FC<MetaDataModalProps> = ({
 
   // ✅ File upload function
   const uploadToIPFS = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch('/api/upload-to-ipfs', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await uploadFilesToPinata([file as File]);
 
-      if (!response.ok) {
+      if (!response.cid) {
         throw new Error('Failed to upload to IPFS');
       }
 
-      const data = await response.json();
-      return `https://ipfs.io/ipfs/${data.cid}`;
+      return `https://ipfs.io/ipfs/${response.cid}`;
     } catch (error) {
       console.error('IPFS upload error:', error);
       throw error;

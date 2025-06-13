@@ -28,15 +28,18 @@ export const tipIpAsset = async (
       payerIpId: zeroAddress,
       token: tokenAddress as `0x${string}`,
       amount: parseEther(amount),
-      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
-      wipOptions: {
-        useMulticallWhenPossible: false, // Disable multicall to avoid the error
-        enableAutoWrapIp: true,
-        enableAutoApprove: true
+      txOptions: {  confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
+      options: {
+        wipOptions: {
+          useMulticallWhenPossible: false, // Disable multicall to avoid the error
+          enableAutoWrapIp: true,
+          enableAutoApprove: true
+        },
+        erc20Options: {
+          enableAutoApprove: true
+        }
       },
-      erc20Options: {
-        enableAutoApprove: true
-      }
+
     });
 
     console.log("Tip transaction successful:", response);
@@ -101,14 +104,16 @@ export const fulfillLicenseTerms = async (
       payerIpId: formattedPayerId,
       token: tokenAddress as `0x${string}`,
       amount: parseEther(amount),
-      txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
-      wipOptions: {
-        useMulticallWhenPossible: false, // Disable multicall to avoid the error
-        enableAutoWrapIp: true,
-        enableAutoApprove: true
-      },
-      erc20Options: {
-        enableAutoApprove: true
+        txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
+      options: {
+        wipOptions: {
+          useMulticallWhenPossible: false, 
+          enableAutoWrapIp: true,
+          enableAutoApprove: true
+        },
+        erc20Options: {
+          enableAutoApprove: true
+        }
       }
     });
 

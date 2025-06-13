@@ -61,24 +61,34 @@ export const claimable_revenue = async (
   useWipToken: boolean,
   client: StoryClient
 ) => {
-  try{
-  const formattedVaultId = royaltyVaultIpId.startsWith("0x")
-    ? (royaltyVaultIpId as `0x${string}`)
-    : (`0x${royaltyVaultIpId}` as `0x${string}`);
-  const formattedClaimer = claimer.startsWith("0x")
-    ? (claimer as `0x${string}`)
-    : (`0x${claimer}` as `0x${string}`);
-  const formattedToken =  useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
-  const amount = await client.royalty.claimableRevenue({
-    ipId: formattedVaultId,
-    claimer: formattedClaimer,
-    token: formattedToken,
-  });
-return {
-    amount: amount,
-  }
-  }catch(error){
+  try {
+    const formattedVaultId = royaltyVaultIpId.startsWith("0x")
+      ? (royaltyVaultIpId as `0x${string}`)
+      : (`0x${royaltyVaultIpId}` as `0x${string}`);
+    const formattedClaimer = claimer.startsWith("0x")
+      ? (claimer as `0x${string}`)
+      : (`0x${claimer}` as `0x${string}`);
+    const formattedToken = useWipToken ? WIP_TOKEN_ADDRESS : MERC20_TOKEN_ADDRESS;
+
+    // First check if the IP asset has a royalty vault
+    const vaultAddress = await client.royalty.getRoyaltyVaultAddress(formattedVaultId);
+    if (!vaultAddress || vaultAddress === "0x0000000000000000000000000000000000000000") {
+      console.log(`No royalty vault found for IP: ${formattedVaultId}`);
+      return { amount: BigInt(0) };
+    }
+
+    const amount = await client.royalty.claimableRevenue({
+      ipId: formattedVaultId,
+      claimer: formattedClaimer,
+      token: formattedToken,
+    });
+
+    return {
+      amount: amount,
+    }
+  } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
+    return { amount: BigInt(0) };
   }
 };
 

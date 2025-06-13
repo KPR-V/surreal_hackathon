@@ -46,6 +46,14 @@ const GlobalStats: React.FC = () => {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, tabType: 'stats' | 'transactions') => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleRefresh(tabType);
+    }
+  };
+
   return (
     <div className="bg-zinc-800/10 backdrop-blur-xl border border-zinc-800/30 rounded-xl overflow-hidden mb-8 shadow-2xl">
       {/* Ultra-Minimalist Tab Headers */}
@@ -65,12 +73,14 @@ const GlobalStats: React.FC = () => {
               </svg>
               <span>Global Statistics</span>
               {activeTab === 'stats' && (
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => handleKeyDown(e, 'stats')}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleRefresh('stats');
                   }}
-                  disabled={refreshing === 'stats'}
                   className="ml-2 p-1 rounded-md hover:bg-blue-500/10 transition-all duration-200 group-hover:scale-105"
                   title="Refresh statistics"
                 >
@@ -84,7 +94,7 @@ const GlobalStats: React.FC = () => {
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                </button>
+                </div>
               )}
             </div>
             {activeTab === 'stats' && (
@@ -106,12 +116,14 @@ const GlobalStats: React.FC = () => {
               </svg>
               <span>Transaction Analytics</span>
               {activeTab === 'transactions' && (
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => handleKeyDown(e, 'transactions')}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleRefresh('transactions');
                   }}
-                  disabled={refreshing === 'transactions'}
                   className="ml-2 p-1 rounded-md hover:bg-pink-500/10 transition-all duration-200 group-hover:scale-105"
                   title="Refresh transaction analytics"
                 >
@@ -125,7 +137,7 @@ const GlobalStats: React.FC = () => {
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                </button>
+                </div>
               )}
             </div>
             {activeTab === 'transactions' && (

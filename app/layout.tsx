@@ -1,25 +1,23 @@
-"use client"
 import type React from "react"
-import dynamic from "next/dynamic"
-import { Inter, Red_Hat_Display, Pacifico, Satisfy } from "next/font/google"
-import "./globals.css"
-import { Toaster } from "../components/ui/toaster"
+import type { Metadata } from 'next';
+import { Inter, Red_Hat_Display, Pacifico,Satisfy } from 'next/font/google';
+import './globals.css';
+import { ClientProviders } from './ClientProviders'; 
 
-const WalletProvider = dynamic(
-  () => import("../components/providers/wallet-provider").then(mod => mod.WalletProvider),
-  { ssr: false }
-);
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-})
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+// Add other fonts if you use them globally
 
 const pacifico = Pacifico({
   subsets: ['latin'],
   variable: '--font-pacifico',
   weight: "400"
 })
+const redHatDisplay = Red_Hat_Display({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-red-hat-display",
+})
+
 
 const SatisfyFont = Satisfy({
   subsets: ['latin'],
@@ -27,12 +25,11 @@ const SatisfyFont = Satisfy({
   weight: "400"
 })
 
-const redHatDisplay = Red_Hat_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-red-hat-display",
-})
 
+export const metadata: Metadata = {
+  title: 'Mint Matrix',
+  description: 'Register, manage, and trade your intellectual property assets on the blockchain.',
+};
 
 
 export default function RootLayout({
@@ -41,13 +38,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} ${redHatDisplay.variable} ${pacifico.variable} ${SatisfyFont.variable} font-redHatDisplay`}>
-        <WalletProvider>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${inter.variable} ${redHatDisplay.variable} ${SatisfyFont.variable} ${pacifico.variable}`}>
+
+        <ClientProviders>
           {children}
-          <Toaster />
-        </WalletProvider>
+        </ClientProviders>
       </body>
     </html>
-  )
+  );
 }

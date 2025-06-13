@@ -37,7 +37,7 @@ async function fetchEdges(whereClause: Partial<{
       Object.entries(whereClause).filter(([_, value]) => value != null && value !== '')
     );
 
-    console.log('Fetching edges with where clause:', cleanWhereClause);
+    // console.log('Fetching edges with where clause:', cleanWhereClause);
 
     while (hasNextPage && retryCount < maxRetries) {
       try {
@@ -137,7 +137,7 @@ async function fetchEdges(whereClause: Partial<{
       }
     }
 
-    console.log(`Fetched ${allEdges.length} edges for where clause:`, cleanWhereClause);
+    // console.log(`Fetched ${allEdges.length} edges for where clause:`, cleanWhereClause);
     return allEdges;
   } catch (error) {
     console.error('Error fetching edges:', error);
@@ -157,15 +157,15 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ error: 'ipId is required for relationships' }, { status: 400 });
         }
 
-        console.log('Fetching relationships for IP:', ipId);
+        // console.log('Fetching relationships for IP:', ipId);
         
         // Get edges where this IP is a child (to find parents)
         const parentsData = await fetchEdges({ ipId });
-        console.log('Parents found:', parentsData.length);
+        // console.log('Parents found:', parentsData.length);
         
         // Get edges where this IP is a parent (to find children)  
         const childrenData = await fetchEdges({ parentIpId: ipId });
-        console.log('Children found:', childrenData.length);
+        // console.log('Children found:', childrenData.length);
 
         return NextResponse.json({
           parents: parentsData,
@@ -253,7 +253,7 @@ export async function GET(request: NextRequest) {
         };
 
         const testResponse = await fetch(`${API_BASE_URL}/assets/edges`, testOptions);
-        console.log('Test connection response:', testResponse.status);
+        // console.log('Test connection response:', testResponse.status);
         
         if (testResponse.ok) {
           const testData = await testResponse.json();

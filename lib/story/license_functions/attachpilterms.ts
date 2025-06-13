@@ -8,7 +8,10 @@ export const attachpilterms = async (licenseTermsId: string | number | bigint,ip
     });
   
     if (response.success) {
-      return `Attached License Terms to IPA at transaction hash ${response.txHash}.`;
+      return {
+        txhash:response.txHash,
+        success:response.success
+      };
     } else {
       return `License Terms already attached to this IPA.`;
     }

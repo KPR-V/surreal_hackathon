@@ -37,10 +37,10 @@ interface NFTResponse {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { address: string } }
+  context: { params: Promise<{ address: string }> }
 ) {
   try {
-    const { address } = params;
+    const { address } = await context.params;
     
     // Validate address format
     if (!address || !address.match(/^0x[a-fA-F0-9]{40}$/)) {

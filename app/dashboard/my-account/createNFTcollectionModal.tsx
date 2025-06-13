@@ -71,6 +71,7 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
       const client = await getStoryClient();
       const contractAddress = await createSpgNftCollection(
         client,
+        formData.mintFeeRecipient as Address,
         formData.name,
         formData.symbol,
         formData.mintFeeRecipient as Address,
@@ -82,10 +83,10 @@ export const CreateNFTCollectionModal: React.FC<CreateNFTCollectionModalProps> =
         setCreationResult({
           success: true,
           message: `Collection created successfully! Contract: ${contractAddress}`,
-          contractAddress
+          contractAddress:contractAddress.spgNftContract
         });
         
-        onCreate?.(formData, contractAddress);
+        onCreate?.(formData, contractAddress.spgNftContract);
         
         // Auto-close after 4 seconds on success
         setTimeout(() => {

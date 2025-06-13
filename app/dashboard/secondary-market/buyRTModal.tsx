@@ -121,14 +121,12 @@ export const BuyRTModal: React.FC<BuyRTModalProps> = ({
       console.log('Transfer function result:', result);
 
       // Check if the transfer was successful
-      if (result && typeof result === 'string' && result.includes('Transaction hash:')) {
+      if (result) {
         // Extract transaction hash from result string
-        const txHashMatch = result.match(/Transaction hash: (0x[a-fA-F0-9]{64})/);
-        const txHash = txHashMatch ? txHashMatch[1] : '';
+        const txHash = result.txhash;
         
         // Extract receipt if available
-        const receiptMatch = result.match(/transaction receipt: (.+)$/);
-        const receipt = receiptMatch ? receiptMatch[1] : '';
+        const receipt = result.receipt;
 
         console.log('Extracted transaction details:', {
           txHash,

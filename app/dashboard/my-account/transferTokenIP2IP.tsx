@@ -31,7 +31,7 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
 
   const [errors, setErrors] = useState<Partial<TransferData>>({});
   const [isTransferring, setIsTransferring] = useState(false);
-  const [transferResult, setTransferResult] = useState<string | null>(null);
+  const [transferResult, setTransferResult] = useState<{txhash: string, receipt: any | undefined} | null>(null);
 
   const validateForm = () => {
     const newErrors: Partial<TransferData> = {};
@@ -81,7 +81,7 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
       }
     } catch (error) {
       console.error('Transfer failed:', error);
-      setTransferResult('Transfer failed. Please try again.');
+      setTransferResult({txhash: '', receipt: undefined});
     } finally {
       setIsTransferring(false);
     }
@@ -133,23 +133,23 @@ export const TransferTokenIP2IP: React.FC<TransferTokenIP2IPProps> = ({
           {/* Transfer Result Display */}
           {transferResult && (
             <div className={`mx-6 mt-4 p-3 rounded-lg border ${
-              transferResult.includes('failed') || transferResult.includes('error')
+                transferResult.txhash === ''
                 ? 'bg-red-500/10 border-red-500/30 text-red-300'
                 : 'bg-green-500/10 border-green-500/30 text-green-300'
             }`}>
               <div className="flex items-start space-x-2">
                 <svg className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                  transferResult.includes('failed') || transferResult.includes('error')
+                  transferResult.txhash === ''
                     ? 'text-red-400'
                     : 'text-green-400'
                 }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {transferResult.includes('failed') || transferResult.includes('error') ? (
+                  {transferResult.txhash === '' ? (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   ) : (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   )}
                 </svg>
-                <p className="text-xs break-all">{transferResult}</p>
+                <p className="text-xs break-all">{transferResult.txhash === '' ? 'Transfer failed. Please try again.' : 'Transfer successful.'}</p>
               </div>
             </div>
           )}

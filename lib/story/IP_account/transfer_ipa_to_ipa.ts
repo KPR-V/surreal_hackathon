@@ -19,7 +19,10 @@ export const transfer_ipaccount_to_ipaccount = async (amount: string,ipid: strin
       txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
     });
   
-    return `Transferred IP Account to IP Account. Transaction hash: ${response.txHash} and transaction receipt: ${response.receipt}`;
+    return {
+      txhash:response.txHash,
+      receipt:response.receipt
+    };
     } catch (error) {
         console.error("Transfer failed:", error instanceof Error ? error.message : String(error));
     }

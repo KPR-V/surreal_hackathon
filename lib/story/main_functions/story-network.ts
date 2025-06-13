@@ -1,6 +1,6 @@
 import { custom } from 'viem';
 import { useWalletClient } from "wagmi";
-import { StoryClient, StoryConfig } from "@story-protocol/core-sdk";
+import { StoryClient, StoryConfig, aeneid } from "@story-protocol/core-sdk";
 
 export function useStoryClient() {
   const { data: wallet, isLoading } = useWalletClient();
@@ -11,7 +11,7 @@ export function useStoryClient() {
     const config: StoryConfig = {
       wallet: wallet,
       transport: custom(wallet.transport),
-      chainId: "aeneid",
+      chainId: aeneid.id,
     };
     
     return StoryClient.newClient(config);

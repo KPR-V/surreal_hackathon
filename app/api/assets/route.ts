@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    console.log('Assets API request:', JSON.stringify(requestBody, null, 2));
+    // console.log('Assets API request:', JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(`${API_BASE_URL}/assets`, {
       method: 'POST',
@@ -45,14 +45,14 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('Assets API response structure:', {
-      hasData: !!data.data,
-      dataLength: data.data?.length || 0,
-      hasNext: !!data.next,
-      hasPrevious: !!data.previous,
-      next: data.next,
-      previous: data.previous
-    });
+    // console.log('Assets API response structure:', {
+    //   hasData: !!data.data,
+    //   dataLength: data.data?.length || 0,
+    //   hasNext: !!data.next,
+    //   hasPrevious: !!data.previous,
+    //   next: data.next,
+    //   previous: data.previous
+    // });
 
     // Return structured response with pagination info
     return NextResponse.json({

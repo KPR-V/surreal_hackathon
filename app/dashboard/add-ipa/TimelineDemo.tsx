@@ -17,7 +17,8 @@ import {attachpilterms} from "../../../lib/story/license_functions/attachpilterm
 import { createnewpilterms } from "../../../lib/story/license_functions/create_new_pilterms";
 import register_derivative_License_tokens from "../../../lib/story/register_functions/register_derivative_License_tokens";
 import { useStoryClient } from "../../../lib/story/main_functions/story-network";
-
+import registerPilTermsAttach from "../../../lib/story/register_functions/register_pilterms_attach";
+import { useAccount } from "wagmi";
 interface Question {
   id: string;
   type: "radio" | "text" | "textarea" | "file" | "checkbox";
@@ -40,6 +41,7 @@ interface TimelineDemoProps {
 }
 
 export function TimelineDemo({ cardConfig, onBack }: TimelineDemoProps) {
+  const { address } = useAccount();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [batchFormData, setBatchFormData] = useState<Record<string, any>[]>([]);
@@ -427,7 +429,14 @@ const register_to_yakoa = async (tokenId: string, creatorId: string, name: strin
       const client = await getStoryClient();
       const result = await register(nftContract,tokenId,client, ipMetadata);
       console.log("Register successful:", result);
-      return result;
+
+
+  //  const yakoa_result = await register_to_yakoa(result?.ipId,address,ipMetadata.title,data.media_id,data.block_number,result?.txHash,ipMetadata.image,data.media_hash,data.trust_reason,data.timestamp,data.license_parents,data.authorizations);
+  // console.log("Yakoa register successful:", yakoa_result);
+   
+
+
+return result;
     } catch (error) {
       console.error("Register failed:", error);
       throw error;
@@ -459,8 +468,8 @@ const register_to_yakoa = async (tokenId: string, creatorId: string, name: strin
         derivativesApproval: data.pilTerms.derivativesApproval || false,
         derivativesReciprocal: data.pilTerms.derivativesReciprocal || false,
         currency: data.pilTerms.currency || "0x0000000000000000000000000000000000000000",
-        defaultMintingFee: BigInt(data.pilTerms.defaultMintingFee) || 0n,
-        derivativeRevCeiling: BigInt(data.pilTerms.derivativeRevCeiling) || 0n,
+        defaultMintingFee: data.pilTerms.defaultMintingFee ? BigInt(data.pilTerms.defaultMintingFee) : 0n,
+        derivativeRevCeiling: data.pilTerms.derivativeRevCeiling ? BigInt(data.pilTerms.derivativeRevCeiling) : 0n,
         uri: data.pilTerms.uri || "",
       };
 
@@ -599,8 +608,8 @@ const register_to_yakoa = async (tokenId: string, creatorId: string, name: strin
         derivativesApproval: data.pilTerms.derivativesApproval || false,
         derivativesReciprocal: data.pilTerms.derivativesReciprocal || false,
         currency: data.pilTerms.currency || "0x0000000000000000000000000000000000000000",
-        defaultMintingFee: BigInt(data.pilTerms.defaultMintingFee) || 0n,
-        derivativeRevCeiling: BigInt(data.pilTerms.derivativeRevCeiling) || 0n,
+        defaultMintingFee: data.pilTerms.defaultMintingFee ? BigInt(data.pilTerms.defaultMintingFee) : 0n,
+        derivativeRevCeiling: data.pilTerms.derivativeRevCeiling ? BigInt(data.pilTerms.derivativeRevCeiling) : 0n,
         uri: data.pilTerms.uri || "0x",
       };
 
@@ -807,41 +816,49 @@ const register_to_yakoa = async (tokenId: string, creatorId: string, name: strin
         const transferable = pilTerms.transferable || true;
         const commercialUse = pilTerms.commercialUse || false;
         const commercialAttribution = pilTerms.commercialAttribution || true;
-        const commercialRevShare = pilTerms.commercialRevShare || 0;
+        const commercialRevShare = pilTerms.commercialRevShare 
+          ? Math.min(Math.max(Math.floor(pilTerms.commercialRevShare / 1_000_000), 0), 100)
+          : 0;
         const derivativesAllowed = pilTerms.derivativesAllowed || false;
         const derivativesAttribution = pilTerms.derivativesAttribution || true;
         const derivativesApproval = pilTerms.derivativesApproval || false;
         const derivativesReciprocal = pilTerms.derivativesReciprocal || false;
         
-        // Optional parameters
         const royaltyPolicy = pilTerms.royaltyPolicy !== "0x0000000000000000000000000000000000000000" ? pilTerms.royaltyPolicy : undefined;
         const defaultMintingFee = pilTerms.mintingFee ? BigInt(pilTerms.mintingFee) : undefined;
         const expiration = pilTerms.expiration ? BigInt(pilTerms.expiration) : undefined;
         const commercialRevCeiling = pilTerms.commercialRevCeiling ? BigInt(pilTerms.commercialRevCeiling) : undefined;
-        const derivativeRevCeiling = undefined; // Not in current PIL modal
-        const usewip = pilTerms.currency === "0x0000000000000000000000000000000000000000"; // Use WIP if zero address
-        
-        // Call the createnewpilterms function
+        const derivativeRevCeiling = undefined; 
+        const usewip = pilTerms.currency === "0x0000000000000000000000000000000000000000"; 
+        const licenseTerms = {
+          transferable,
+          commercialUse,
+          commercialAttribution,
+          commercialRevShare,
+          derivativesAllowed,
+          derivativesAttribution: derivativesAllowed ? derivativesAttribution : false,
+          derivativesApproval: derivativesAllowed ? derivativesApproval : false,
+          derivativesReciprocal: derivativesAllowed ? derivativesReciprocal : false,
+          royaltyPolicy: royaltyPolicy || "0xBe54FB168b3c982b7AaE60dB6CF75Bd8447b390E" as `0x${string}`,
+          defaultMintingFee: defaultMintingFee || 0n,
+          expiration: expiration || 0n,
+          commercialRevCeiling: commercialRevCeiling || 0n,
+          derivativeRevCeiling: derivativeRevCeiling || 0n,
+          currency: usewip ? "0x1514000000000000000000000000000000000000" : "0xF2104833d386a2734a4eB3B8ad6FC6812F29E38E" as `0x${string}`,
+          uri: pilTerms.uri || "",
+          commercializerChecker: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+          commercializerCheckerData: "0x" as `0x${string}`
+        };
+
         const client = await getStoryClient();
-          const result = await createnewpilterms(
-            transferable,
-            client,
-            commercialUse,
-            commercialAttribution,
-            commercialRevShare,
-            derivativesAllowed,
-            derivativesAttribution,
-            derivativesApproval,
-            derivativesReciprocal,
-            royaltyPolicy,
-            defaultMintingFee,
-            expiration,
-            commercialRevCeiling,
-            derivativeRevCeiling,
-            usewip
-          );
-          console.log("Create and attach PIL terms successful:", result);
-          return result;
+        const result = await registerPilTermsAttach(ipId, licenseTerms, client);
+        
+        if (!result) {
+          throw new Error("Failed to register and attach PIL terms. Please check the console for more details.");
+        }
+        
+        console.log("Create and attach PIL terms successful:", result);
+        return result;
       }
       
     } catch (error) {
