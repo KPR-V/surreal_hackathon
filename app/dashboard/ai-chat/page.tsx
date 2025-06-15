@@ -1,11 +1,12 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Send, ImageIcon, Video, Music, Plus, Download, Share2, ChevronDown, Settings, Wand2, Info,AlertCircle } from "lucide-react"
+import { Send, ImageIcon, Video, Music, Plus, Download, Share2, ChevronDown, Settings, Wand2, Info, AlertCircle, Wallet } from "lucide-react"
 import axios from "axios"
 import { Buffer } from "buffer"
 import { useAccountModal } from "@tomo-inc/tomo-evm-kit"
 import { AnimatedBackground } from "../../../components/animated-background"
 import { RegistrationModal } from "./registrationModal";
+import SmartWallet from "./smartWallet"
 
 interface GeneratedContent {
   id: string;
@@ -44,9 +45,10 @@ export default function AIChatPage() {
   const [isUserTyping, setIsUserTyping] = useState(false)
   const { openAccountModal } = useAccountModal()
   // Add these new state variables after your existing ones
-const [imageError, setImageError] = useState<string | null>(null);
-const [videoError, setVideoError] = useState<string | null>(null);
-const [audioError, setAudioError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [smartWalletMode, setSmartWalletMode] = useState(false)
 
   // Audio settings
   const [audioSettings, setAudioSettings] = useState({
@@ -530,6 +532,16 @@ const [audioError, setAudioError] = useState<string | null>(null);
     }
   };
 
+  // If smart wallet mode is active, render the smart wallet component
+  if (smartWalletMode) {
+    return (
+      <div className="min-h-screen relative">
+        <AnimatedBackground />
+        <SmartWallet onBack={() => setSmartWalletMode(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen relative">
       <AnimatedBackground />
@@ -543,13 +555,26 @@ const [audioError, setAudioError] = useState<string | null>(null);
             Mint <span className="text-transparent font-satisfy font-thin" style={{ WebkitTextStroke: '1px white'}}>Matrix</span>
           </h1>
           
-          {/* Account Button */}
-          <button 
-            onClick={openAccountModal} 
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg text-white transition-all duration-200 text-sm font-medium"
-          >
-            Account
-          </button>
+          {/* Buttons */}
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setSmartWalletMode(true)}
+              className={`px-4 py-2 backdrop-blur-sm border rounded-lg transition-all duration-200 text-sm font-medium flex items-center space-x-2 ${
+                smartWalletMode 
+                  ? 'bg-green-500/20 hover:bg-green-500/30 border-green-500/30 text-green-300' 
+                  : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
+              }`}
+            >
+              <Wallet className="w-4 h-4" />
+              <span>Smart Wallet</span>
+            </button>
+            <button 
+              onClick={openAccountModal} 
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg text-white transition-all duration-200 text-sm font-medium"
+            >
+              Account
+            </button>
+          </div>
         </div>
 
         {/* Header - Only show initially, hide once generation starts */}
