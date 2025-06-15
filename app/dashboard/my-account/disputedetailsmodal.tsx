@@ -316,29 +316,6 @@ export const DisputeDetailsModal: React.FC<DisputeDetailsModalProps> = ({
                     )}
                   </div>
                 </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between pt-4 border-t border-zinc-700/20">
-                  <div className="flex space-x-3">
-                    {disputeDetails.status.toLowerCase() === 'raised' && (
-                      <>
-                        <button 
-                          onClick={handleCancelClick}
-                          className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-all duration-200"
-                        >
-                          Cancel Dispute
-                        </button>
-                        
-                      </>
-                    )}
-                  </div>
-                  <button 
-                          onClick={handleResolveClick}
-                          className="px-4 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 rounded-lg text-sm font-medium transition-all duration-200"
-                        >
-                          Resolve Dispute
-                        </button>
-                </div>
               </div>
             ) : null}
           </div>

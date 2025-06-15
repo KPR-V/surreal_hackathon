@@ -144,7 +144,6 @@ export const RaiseDisputeModal: React.FC<RaiseDisputeModalProps> = ({
     description: ''
   });
   const [bondAmount, setBondAmount] = useState('0.1');
-  const [livenessHours, setLivenessHours] = useState('24');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [txHash, setTxHash] = useState('');
@@ -158,6 +157,9 @@ export const RaiseDisputeModal: React.FC<RaiseDisputeModalProps> = ({
   const bondAmountNum = parseFloat(bondAmount) || 0;
   const bondInUsd = BondCalculatorService.ethToUsd(bondAmountNum);
   const bondInIpTokens = BondCalculatorService.ethToIpTokens(bondAmountNum);
+
+  // Fixed 30 days resolution time
+  const RESOLUTION_DAYS = 30;
 
   // Update bond amount when dispute reason changes
   useEffect(() => {
@@ -341,24 +343,21 @@ export const RaiseDisputeModal: React.FC<RaiseDisputeModalProps> = ({
     try {
       // Upload evidence to IPFS
       const evidenceCid = await uploadEvidenceToIPFS();
-      
-      const livenessSeconds = parseInt(livenessHours) * 3600;
 
       console.log('Submitting dispute with:', {
-      targetIpId: ipId,
-      evidenceCid: evidenceCid,
-      targetTag: selectedTag,
-      bondAmount: bondAmount,
-      livenessSeconds: livenessSeconds, // Log this to verify
-      livenessHours: livenessHours
-    });
+        targetIpId: ipId,
+        evidenceCid: evidenceCid,
+        targetTag: selectedTag,
+        bondAmount: bondAmount,
+        resolutionDays: RESOLUTION_DAYS
+      });
 
+      // Updated function call - removed liveness parameter
       const result = await raiseDispute(
         ipId,
         evidenceCid,
         selectedTag,
         bondAmount,
-        livenessSeconds,
         client
       );
       
@@ -378,7 +377,6 @@ export const RaiseDisputeModal: React.FC<RaiseDisputeModalProps> = ({
     setSelectedTag('');
     setEvidence({ files: [], urls: [], description: '' });
     setBondAmount('0.1');
-    setLivenessHours('24');
     setTxHash('');
     setDisputeId('');
     setError('');
@@ -730,28 +728,34 @@ export const RaiseDisputeModal: React.FC<RaiseDisputeModalProps> = ({
               </div>
             </div>
 
-            {/* Resolution Time */}
+            {/* Resolution Time Display */}
             <div className="space-y-3">
-              <label htmlFor="liveness" className="block text-sm font-medium text-zinc-300">
-                Resolution Time <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-zinc-300">
+                Resolution Time
               </label>
-              <select
-                id="liveness"
-                value={livenessHours}
-                onChange={(e) => setLivenessHours(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all"
-              >
-                <option value="24">24 hours</option>
-                <option value="48">48 hours</option>
-                <option value="72">72 hours</option>
-                <option value="168">1 week</option>
-              </select>
-              <p className="text-xs text-zinc-500">
-                Time window for counter-disputes and resolution
-              </p>
-              <span className="text-blue-400 font-mono">
-               {parseInt(livenessHours) * 3600} seconds
-               </span>
+              <div className="p-4 bg-zinc-800/30 border border-zinc-700/30 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-medium text-white">{RESOLUTION_DAYS} Days</p>
+                    <p className="text-sm text-zinc-400">Fixed resolution period for all disputes</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-zinc-500">Liveness Period</p>
+                    <p className="text-sm text-blue-400 font-mono">{RESOLUTION_DAYS * 24 * 60 * 60} seconds</p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-zinc-700/30">
+                  <p className="text-xs text-zinc-500">
+                    This is the time window for counter-disputes and community resolution. 
+                    All parties will have {RESOLUTION_DAYS} days to respond and provide counter-evidence.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Error Message */}
@@ -827,6 +831,10 @@ export const RaiseDisputeModal: React.FC<RaiseDisputeModalProps> = ({
                   <p className="text-sm text-amber-400 font-medium">
                     {bondAmount} ETH 
                   </p>
+                </div>
+                <div className="p-3 bg-zinc-800/30 rounded-lg">
+                  <p className="text-xs text-zinc-500 mb-1">Resolution Period:</p>
+                  <p className="text-sm text-blue-400 font-medium">{RESOLUTION_DAYS} Days</p>
                 </div>
                 <div className="p-3 bg-zinc-800/30 rounded-lg">
                   <p className="text-xs text-zinc-500 mb-1">Transaction Hash:</p>

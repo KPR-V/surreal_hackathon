@@ -53,16 +53,36 @@ export const TransactionTable = React.forwardRef<{ refresh: () => void }, Transa
       
       setTransactions(result.data || []);
       
-      setPagination({
+      // Fix pagination state management
+      setPagination(prev => ({
+        hasNext: result.hasNext || false,
+        hasPrevious: result.hasPrevious || false,
+        next: result.next,
+        previous: result.previous,
+        currentPage: direction === 'next' ? prev.currentPage + 1 : 
+                    direction === 'previous' ? Math.max(1, prev.currentPage - 1) : 1
+      }));
+
+      console.log('Pagination updated:', {
+        direction,
         hasNext: result.hasNext,
         hasPrevious: result.hasPrevious,
         next: result.next,
         previous: result.previous,
         currentPage: direction === 'next' ? pagination.currentPage + 1 : 
-                    direction === 'previous' ? pagination.currentPage - 1 : 1
+                    direction === 'previous' ? Math.max(1, pagination.currentPage - 1) : 1
       });
+
     } catch (err) {
       console.error('Error fetching transactions:', err);
+      // Reset pagination on error
+      setPagination(prev => ({
+        hasNext: false,
+        hasPrevious: prev.currentPage > 1,
+        next: undefined,
+        previous: undefined,
+        currentPage: prev.currentPage
+      }));
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -71,15 +91,33 @@ export const TransactionTable = React.forwardRef<{ refresh: () => void }, Transa
 
   const goToNextPage = () => {
     if (pagination.next && !loadingMore) {
+      console.log('Going to next page with cursor:', pagination.next);
       fetchTransactions(pagination.next, 'next');
     }
   };
 
   const goToPreviousPage = () => {
     if (pagination.previous && !loadingMore) {
+      console.log('Going to previous page with cursor:', pagination.previous);
       fetchTransactions(pagination.previous, 'previous');
+    } else if (pagination.currentPage > 1 && !loadingMore) {
+      // Fallback: if no previous cursor but we're not on page 1, try to go back
+      console.log('No previous cursor, attempting to go back from page:', pagination.currentPage);
+      fetchTransactions(undefined, 'previous');
     }
   };
+
+  // Add imperative handle for refresh functionality
+  React.useImperativeHandle(ref, () => ({
+    refresh: () => {
+      setPagination({
+        hasNext: false,
+        hasPrevious: false,
+        currentPage: 1
+      });
+      fetchTransactions();
+    }
+  }));
 
   const formatDate = (timestamp: string) => {
     try {
@@ -341,12 +379,13 @@ export const TransactionTable = React.forwardRef<{ refresh: () => void }, Transa
             </div>
           </div>
           
-          {/* Refined Pagination Controls */}
+          {/* Enhanced Pagination Controls with better debugging */}
           <div className={`flex justify-center items-center space-x-3 bg-zinc-950/25 backdrop-blur-sm border-t border-zinc-800/20 ${compact ? 'p-2.5' : 'p-3'}`}>
             <button
               onClick={goToPreviousPage}
-              disabled={!pagination.hasPrevious || loadingMore}
-              className={`${compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-xs'} bg-zinc-500/10 hover:bg-zinc-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-neutral-300 hover:text-neutral-200 rounded-lg transition-all duration-200 border border-zinc-500/20 hover:border-zinc-500/30 disabled:hover:-neutral-500/20 font-medium`}
+              disabled={(!pagination.hasPrevious && pagination.currentPage <= 1) || loadingMore}
+              className={`${compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-xs'} bg-zinc-500/10 hover:bg-zinc-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-neutral-300 hover:text-neutral-200 rounded-lg transition-all duration-200 border border-zinc-500/20 hover:border-zinc-500/30 disabled:hover:border-zinc-500/20 font-medium`}
+              title={`Previous page (Current: ${pagination.currentPage})`}
             >
               <div className="flex items-center space-x-1.5">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -366,6 +405,7 @@ export const TransactionTable = React.forwardRef<{ refresh: () => void }, Transa
               onClick={goToNextPage}
               disabled={!pagination.hasNext || loadingMore}
               className={`${compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-xs'} bg-neutral-500/10 hover:bg-neutral-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-purple-300 hover:text-purple-200 rounded-lg transition-all duration-200 border border-purple-500/20 hover:border-purple-500/30 disabled:hover:border-purple-500/20 font-medium`}
+              title={`Next page (Current: ${pagination.currentPage})`}
             >
               {loadingMore ? (
                 <div className="flex items-center space-x-1.5">

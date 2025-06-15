@@ -26,6 +26,7 @@ interface ListedRoyaltyToken {
 
 interface ListedRTProps {
   filter: string;
+  onPurchaseComplete?: () => void; // Add callback for purchase completion
 }
 
 // Mock IPAsset interface to match MarketplaceAssetDetails expectations
@@ -51,13 +52,14 @@ interface IPAsset {
   transactionHash: string;
 }
 
-export const ListedRT: React.FC<ListedRTProps> = ({ filter }) => {
+export const ListedRT: React.FC<ListedRTProps> = ({ filter, onPurchaseComplete }) => {
   const [listings, setListings] = useState<ListedRoyaltyToken[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedAssetDetails, setSelectedAssetDetails] = useState<IPAsset | null>(null);
   const [isAssetDetailsOpen, setIsAssetDetailsOpen] = useState(false);
   const [selectedListingForPurchase, setSelectedListingForPurchase] = useState<ListedRoyaltyToken | null>(null);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+  const [loadingDetailsId, setLoadingDetailsId] = useState<string | null>(null); // Add loading state for specific listing
 
   // IP token exchange rate
   const IP_TOKEN_USD_RATE = 4.15;
@@ -111,14 +113,42 @@ export const ListedRT: React.FC<ListedRTProps> = ({ filter }) => {
     setIsBuyModalOpen(true);
   };
 
-  const handlePurchaseComplete = (txHash: string) => {
+  const handlePurchaseComplete = (txHash: string, purchaseData?: any) => {
     console.log('Purchase completed with txHash:', txHash);
+    
+    // Store purchase in localStorage for data tracking
+    if (purchaseData) {
+      try {
+        const existingPurchases = JSON.parse(localStorage.getItem('royaltyTokenPurchases') || '[]');
+        const newPurchase = {
+          ...purchaseData,
+          txHash,
+          purchaseDate: new Date().toISOString(),
+          id: Date.now().toString() // Simple ID generation
+        };
+        existingPurchases.push(newPurchase);
+        localStorage.setItem('royaltyTokenPurchases', JSON.stringify(existingPurchases));
+      } catch (error) {
+        console.error('Error storing purchase data:', error);
+      }
+    }
+    
     // Refresh listings to remove the sold item
     fetchListings();
+    
+    // Trigger parent component refresh (for data cards)
+    if (onPurchaseComplete) {
+      onPurchaseComplete();
+    }
   };
 
   const handleViewDetails = async (listing: ListedRoyaltyToken) => {
+    setLoadingDetailsId(listing.id); // Set loading for this specific listing
+    
     try {
+      // Add a small delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Fetch IP Asset details from the API using the ipId
       const response = await fetch(`/api/assets/${listing.ipId}`);
       
@@ -205,6 +235,8 @@ export const ListedRT: React.FC<ListedRTProps> = ({ filter }) => {
       
       setSelectedAssetDetails(fallbackAsset);
       setIsAssetDetailsOpen(true);
+    } finally {
+      setLoadingDetailsId(null); // Clear loading state
     }
   };
 
@@ -294,6 +326,7 @@ export const ListedRT: React.FC<ListedRTProps> = ({ filter }) => {
             const safePercentage = safeNumber(listing.percentageToSell);
             const safePrice = safeNumber(listing.pricePerTokenIP);
             const totalPrice = safePercentage * safePrice;
+            const isLoadingThisDetails = loadingDetailsId === listing.id;
             
             return (
               <div 
@@ -446,16 +479,26 @@ export const ListedRT: React.FC<ListedRTProps> = ({ filter }) => {
                     
                     <div className="flex items-center space-x-2">
                       <div>
-                       <button
-                        onClick={() => handleViewDetails(listing)}
-                        className=" text-blue-300 hover:text-blue-200 font-medium text-xs transition-all duration-200 flex items-center space-x-1"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span>View IP Details</span>
-                      </button>
+                        <button
+                          onClick={() => handleViewDetails(listing)}
+                          disabled={isLoadingThisDetails}
+                          className="text-blue-300 hover:text-blue-200 font-medium text-xs transition-all duration-200 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isLoadingThisDetails ? (
+                            <>
+                              <div className="w-3 h-3 border border-blue-300 border-t-transparent rounded-full animate-spin"></div>
+                              <span>Loading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              <span>View IP Details</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                       <div className="flex items-center space-x-1">
                       <span className="text-zinc-500">Vault:</span>
@@ -488,7 +531,7 @@ export const ListedRT: React.FC<ListedRTProps> = ({ filter }) => {
         />
       )}
 
-      {/* BuyRT Modal */}
+      {/* BuyRT Modal - Updated to pass purchase data */}
       {selectedListingForPurchase && (
         <BuyRTModal
           isOpen={isBuyModalOpen}
@@ -497,7 +540,7 @@ export const ListedRT: React.FC<ListedRTProps> = ({ filter }) => {
             setSelectedListingForPurchase(null);
           }}
           listing={selectedListingForPurchase}
-          onPurchaseComplete={handlePurchaseComplete}
+          onPurchaseComplete={(txHash) => handlePurchaseComplete(txHash, selectedListingForPurchase)}
         />
       )}
     </>

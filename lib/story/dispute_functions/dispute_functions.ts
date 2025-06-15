@@ -6,7 +6,6 @@ export const raiseDispute = async (
   evidence_cid: string,
   targetTag: string,
   bond: string,
-  liveness_seconds: number,
   client: StoryClient
 ) => {
   try{
@@ -18,7 +17,8 @@ export const raiseDispute = async (
     "IN_DISPUTE",
   ];
 
-  
+  // Fixed 30 days in seconds (30 * 24 * 60 * 60 = 2,592,000 seconds)
+  const THIRTY_DAYS_SECONDS = 2592000;
 
   if (!validTags.includes(targetTag)) {
     throw new Error(
@@ -28,16 +28,12 @@ export const raiseDispute = async (
     );
   }
 
-  if (!liveness_seconds || liveness_seconds <= 0) {
-      throw new Error('Invalid liveness period. Must be greater than 0 seconds.');
-    }
-
      console.log('Raising dispute with parameters:', {
       targetIpId,
       evidence_cid,
       targetTag,
       bond,
-      liveness_seconds,
+      liveness_seconds: THIRTY_DAYS_SECONDS,
       bondInWei: parseEther(bond).toString()
     });
 
@@ -47,7 +43,7 @@ export const raiseDispute = async (
     cid: evidence_cid,
     targetTag: targetTag as DisputeTargetTag,
     bond: parseEther(bond),
-    liveness: BigInt(liveness_seconds),
+    liveness: BigInt(THIRTY_DAYS_SECONDS),
     txOptions: { confirmations: 5 ,retryCount: 3 , pollingInterval: 1000 },
   });
   return {

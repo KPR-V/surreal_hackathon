@@ -64,12 +64,12 @@ const register_to_yakoa = async (tokenId: string, creatorId: string, name: strin
       tokenId: tokenId, // ipid 
       creatorId: creatorId, // creator da address wallet address ya simillar thing 
       metadata: {name: name},
-      media: {
+      media: [{
         media_id: mediaId, // media name rakh de ya kuch vi like jo isdi identification ho 
         url: url,
         hash: media_hash,
         trust_reason: trust_reason || {type: "", platform_name: ""},
-      },
+      }],
       registrationTx: {
         hash: transaction_hash,
         block_number: blockNumber,

@@ -1,12 +1,66 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
 import { claimable_revenue, batch_claim_all_revenue } from '../../../lib/story/royalty_functions/claim_revenue';
 import { useStoryClient } from '../../../lib/story/main_functions/story-network';
+
 interface ClaimableRevenueProps {
   userIpIds?: string[]; // Array of user's IP asset IDs
   userAddress?: string; // User's wallet address
   onClaimRevenue?: () => void;
+}
+
+interface NFTAsset {
+  id: string;
+  image_url: string | null;
+  media_url: string | null;
+  metadata: any;
+  token: {
+    address: string;
+    name: string;
+    symbol: string;
+    type: string;
+    total_supply: string;
+    holders_count: string;
+  };
+  token_type: string;
+  value: string;
+  external_app_url: string | null;
+}
+
+interface IPAssetData {
+  id: string;
+  ipId: string;
+  tokenContract: string;
+  tokenId: string;
+  nftMetadata?: {
+    name?: string;
+    imageUrl?: string;
+  };
+  childrenCount?: number;
+  descendantCount?: number;
+}
+
+interface RelationshipData {
+  children: string[];
+  parents: string[];
+  childrenCount: number;
+  parentCount: number;
+  ancestorCount: number;
+  descendantCount: number;
+}
+
+interface LicenseTermDetail {
+  id: string;
+  ipId: string;
+  licenseTemplateId: string;
+  terms: {
+    royaltyPolicy: string;
+    commercialUse: boolean;
+    derivativesAllowed: boolean;
+    [key: string]: any;
+  };
 }
 
 export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
@@ -14,19 +68,212 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
   userAddress,
   onClaimRevenue
 }) => {
+  const { address: connectedAddress, isConnected } = useAccount();
   const [totalRevenue, setTotalRevenue] = useState<string>('0.0');
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [tokenType, setTokenType] = useState<'WIP' | 'MERC20'>('WIP');
   const [error, setError] = useState<string | null>(null);
+  const [ipAssets, setIpAssets] = useState<IPAssetData[]>([]);
+  const [ipRelationships, setIpRelationships] = useState<Map<string, RelationshipData>>(new Map());
+  const [ipLicenseTerms, setIpLicenseTerms] = useState<Map<string, LicenseTermDetail[]>>(new Map());
   const { getStoryClient } = useStoryClient();
-  // Use a test address if userAddress is not provided
-  const testAddress = "0x34a817D5723A289E125b35aAac7e763b6097d38d";
-  const claimer = userAddress || testAddress;
 
+  // Use connected wallet address or provided address
+  const claimer = connectedAddress || userAddress;
+
+  // Fetch IP relationships (children) for each IP asset
+  const fetchIPRelationships = async (ipIds: string[]) => {
+    try {
+      console.log('Fetching relationships for IP assets:', ipIds);
+      
+      const relationshipMap = new Map<string, RelationshipData>();
+      
+      // Fetch relationships for each IP asset
+      const relationshipPromises = ipIds.map(async (ipId) => {
+        try {
+          const response = await fetch('/api/ip-relationships', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ipId })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const relationshipData: RelationshipData = {
+              children: data.children || [],
+              parents: data.parents || [],
+              childrenCount: data.childrenCount || 0,
+              parentCount: data.parentCount || 0,
+              ancestorCount: data.ancestorCount || 0,
+              descendantCount: data.descendantCount || 0
+            };
+            
+            relationshipMap.set(ipId, relationshipData);
+            console.log(`IP ${ipId} has ${relationshipData.children.length} children:`, relationshipData.children);
+          }
+        } catch (error) {
+          console.error(`Error fetching relationships for IP ${ipId}:`, error);
+          relationshipMap.set(ipId, {
+            children: [],
+            parents: [],
+            childrenCount: 0,
+            parentCount: 0,
+            ancestorCount: 0,
+            descendantCount: 0
+          });
+        }
+      });
+      
+      await Promise.all(relationshipPromises);
+      setIpRelationships(relationshipMap);
+      
+    } catch (error) {
+      console.error('Error fetching IP relationships:', error);
+    }
+  };
+
+  // Fetch license terms for IP assets to get royalty policies
+  const fetchIPLicenseTerms = async (ipIds: string[]) => {
+    try {
+      console.log('Fetching license terms for IP assets:', ipIds);
+      
+      const response = await fetch('/api/detailed-ip-license-terms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ipIds })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch IP license terms');
+      }
+      
+      const data = await response.json();
+      const licenseTerms: LicenseTermDetail[] = data.data || [];
+      
+      console.log('Fetched license terms:', licenseTerms);
+      
+      // Group license terms by IP ID
+      const termsMap = new Map<string, LicenseTermDetail[]>();
+      licenseTerms.forEach(term => {
+        const existing = termsMap.get(term.ipId) || [];
+        existing.push(term);
+        termsMap.set(term.ipId, existing);
+      });
+      
+      setIpLicenseTerms(termsMap);
+      
+    } catch (error) {
+      console.error('Error fetching IP license terms:', error);
+    }
+  };
+
+  // Fetch user's NFTs and filter for registered IP assets
+  const fetchUserIPAssets = async () => {
+    if (!isConnected || !claimer) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    try {
+      console.log('Fetching wallet NFTs for claimable revenue...');
+      
+      // Fetch all NFTs from the wallet (same as My IP tab)
+      const response = await fetch(`/api/nfts/${claimer}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch NFTs');
+      }
+
+      const data = await response.json();
+      const allNFTs: NFTAsset[] = data.items || [];
+
+      // Filter OUT PILicenseTokens (only get regular NFTs, same as My IP tab)
+      const regularNFTs = allNFTs.filter((nft: NFTAsset) => 
+        nft.token.symbol !== "PILicenseToken"
+      );
+
+      console.log('Filtered NFTs for IP checking:', {
+        totalNFTs: allNFTs.length,
+        regularNFTs: regularNFTs.length,
+        filteredOutLicenseTokens: allNFTs.length - regularNFTs.length
+      });
+
+      // Check which NFTs are registered as IP assets
+      if (regularNFTs.length === 0) {
+        setIpAssets([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Prepare batch request to check IP registration
+      const tokenContractIds = regularNFTs.map(nft => nft.token.address);
+      const tokenIds = regularNFTs.map(nft => nft.id);
+
+      const ipResponse = await fetch('/api/ip-assets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenContractIds,
+          tokenIds
+        })
+      });
+
+      if (!ipResponse.ok) {
+        throw new Error('Failed to check IP registration status');
+      }
+
+      const ipData = await ipResponse.json();
+      const registeredIPs: IPAssetData[] = ipData.data || [];
+
+      console.log('Found registered IP assets:', {
+        checkedNFTs: regularNFTs.length,
+        registeredIPs: registeredIPs.length,
+        ipIds: registeredIPs.map(ip => ip.ipId)
+      });
+
+      setIpAssets(registeredIPs);
+
+      // Fetch relationships and license terms for registered IPs
+      if (registeredIPs.length > 0) {
+        const ipIds = registeredIPs.map(ip => ip.ipId);
+        await Promise.all([
+          fetchIPRelationships(ipIds),
+          fetchIPLicenseTerms(ipIds)
+        ]);
+      }
+
+    } catch (error) {
+      console.error('Error fetching user IP assets:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch IP assets');
+      setIpAssets([]);
+    }
+  };
+
+  // Calculate claimable revenue for all IP assets
   const fetchClaimableRevenue = async () => {
-    if (userIpIds.length === 0) {
+    if (!claimer) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    // First fetch the user's IP assets if we don't have them
+    if (ipAssets.length === 0) {
+      await fetchUserIPAssets();
+    }
+
+    if (ipAssets.length === 0) {
+      setTotalRevenue('0.0');
       setLoading(false);
       setRefreshing(false);
       return;
@@ -35,33 +282,33 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
     setError(null);
     
     try {
-      console.log(`Fetching claimable revenue for ${userIpIds.length} IP assets using ${tokenType} token`);
+      console.log(`Fetching claimable revenue for ${ipAssets.length} IP assets using ${tokenType} token`);
       
       let totalAmount = 0;
 
       // Fetch claimable revenue for each IP asset
-      const revenuePromises = userIpIds.map(async (ipId) => {
+      const revenuePromises = ipAssets.map(async (ipAsset) => {
         try {
-          console.log(`Checking claimable revenue for IP: ${ipId}`);
+          console.log(`Checking claimable revenue for IP: ${ipAsset.ipId}`);
           
           const client = await getStoryClient();
           const result = await claimable_revenue(
-            ipId,
-            claimer,
-            tokenType === 'WIP',
+            ipAsset.ipId,     // royaltyVaultIpId (same as ipId)
+            claimer,          // claimer (user wallet address)
+            tokenType === 'WIP', // useWipToken based on toggle
             client
           );
           
           if (result?.amount) {
             // Convert from wei to ether (assuming the amount is in wei)
             const amountInEther = parseFloat(result.amount.toString()) / Math.pow(10, 18);
-            console.log(`IP ${ipId}: ${amountInEther} ${tokenType}`);
+            console.log(`IP ${ipAsset.ipId}: ${amountInEther} ${tokenType}`);
             return amountInEther;
           }
           
           return 0;
         } catch (error) {
-          console.error(`Error fetching revenue for IP ${ipId}:`, error);
+          console.error(`Error fetching revenue for IP ${ipAsset.ipId}:`, error);
           return 0;
         }
       });
@@ -82,19 +329,44 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
     }
   };
 
+  // Initial load: fetch IP assets and then revenue
   useEffect(() => {
-    fetchClaimableRevenue();
-  }, [tokenType, userIpIds.length]); // Re-fetch when token type or IP list changes
+    if (isConnected && claimer) {
+      setLoading(true);
+      fetchUserIPAssets().then(() => {
+        // After IP assets are loaded, the revenue will be calculated in the next useEffect
+      });
+    } else {
+      setIpAssets([]);
+      setTotalRevenue('0.0');
+      setLoading(false);
+    }
+  }, [claimer, isConnected]);
+
+  // Re-fetch revenue when token type changes or IP assets are loaded
+  useEffect(() => {
+    if (ipAssets.length > 0) {
+      fetchClaimableRevenue();
+    }
+  }, [tokenType, ipAssets.length]);
 
   const handleRefresh = () => {
     console.log('Refreshing claimable revenue data...');
     setRefreshing(true);
-    fetchClaimableRevenue();
+    // Refresh both IP assets and revenue
+    fetchUserIPAssets().then(() => {
+      fetchClaimableRevenue();
+    });
   };
 
   const handleClaimAll = async () => {
-    if (userIpIds.length === 0) {
+    if (ipAssets.length === 0) {
       setError('No IP assets to claim revenue from');
+      return;
+    }
+
+    if (!claimer) {
+      setError('Wallet not connected');
       return;
     }
 
@@ -104,22 +376,55 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
     try {
       console.log('Starting batch claim for all revenue...');
       
-      // Prepare batch claim requests
-      const claimRequests = userIpIds.map(ipId => ({
-        ancestorIpId: ipId,
-        claimer: claimer,
-        childIpIds: [], // Empty for claiming revenue from own IPs
-        royaltyPolicies: [], // Empty for claiming revenue from own IPs
-        useWipToken: tokenType === 'WIP'
-      }));
+      // Prepare batch claim requests with child IPs and royalty policies
+      const claimRequests = ipAssets.map(ipAsset => {
+        const relationships = ipRelationships.get(ipAsset.ipId);
+        const licenseTerms = ipLicenseTerms.get(ipAsset.ipId) || [];
+        
+        // Get child IP IDs
+        const childIpIds = relationships?.children || [];
+        
+        // Get royalty policies from license terms
+        const royaltyPolicies = licenseTerms
+          .map(term => term.terms.royaltyPolicy)
+          .filter(policy => policy && policy !== '0x0000000000000000000000000000000000000000');
+        
+        // Ensure we have matching arrays - pad with empty values if needed
+        const maxLength = Math.max(childIpIds.length, royaltyPolicies.length);
+        const paddedChildIds = [...childIpIds];
+        const paddedPolicies = [...royaltyPolicies];
+        
+        // Pad arrays to same length
+        while (paddedChildIds.length < maxLength) {
+          paddedChildIds.push('');
+        }
+        while (paddedPolicies.length < maxLength) {
+          paddedPolicies.push('');
+        }
+        
+        console.log(`IP ${ipAsset.ipId} claim request:`, {
+          childIpIds: paddedChildIds,
+          royaltyPolicies: paddedPolicies,
+          useWipToken: tokenType === 'WIP'
+        });
+        
+        return {
+          ancestorIpId: ipAsset.ipId,
+          claimer: claimer,
+          childIpIds: paddedChildIds,
+          royaltyPolicies: paddedPolicies,
+          useWipToken: tokenType === 'WIP'
+        };
+      });
 
       console.log('Batch claim requests:', claimRequests);
 
       const client = await getStoryClient();
-      const result = await batch_claim_all_revenue(claimRequests,client);
+      const result = await batch_claim_all_revenue(claimRequests, client);
       
-      if (result?.txHashes) {
-        console.log('Claim successful! Transaction hashes:', result.txHashes);
+      if (result?.txHashes && result.txHashes.length > 0) {
+        console.log('Batch claim successful!');
+        console.log('Transaction hashes:', result.txHashes);
         console.log('Claimed tokens:', result.claimedTokens);
         
         // Refresh the revenue data after successful claim
@@ -128,15 +433,23 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
         // Call the callback if provided
         onClaimRevenue?.();
         
-        // Show success message (you could use a toast library here)
-        alert(`Successfully claimed revenue! Transaction hash: ${result.txHashes[0]}`);
+        // Show success message
+        const txHashesText = result.txHashes.length > 1 
+          ? `${result.txHashes.length} transactions completed`
+          : `Transaction: ${result.txHashes[0]}`;
+        
+        alert(`Successfully claimed revenue from ${ipAssets.length} IP assets!\n${txHashesText}`);
       } else {
-        throw new Error('Claim transaction failed');
+        throw new Error('Batch claim transaction failed - no transaction hashes returned');
       }
 
     } catch (error) {
       console.error('Error claiming revenue:', error);
-      setError(error instanceof Error ? error.message : 'Failed to claim revenue');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to claim revenue';
+      setError(errorMessage);
+      
+      // Show detailed error message
+      alert(`Failed to claim revenue: ${errorMessage}`);
     } finally {
       setClaiming(false);
     }
@@ -154,7 +467,7 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
           <div>
             <h3 className="text-sm font-medium text-white">Claimable Revenue</h3>
             <p className="text-xs text-zinc-400">
-              From {userIpIds.length} IP Asset{userIpIds.length !== 1 ? 's' : ''}
+              From {ipAssets.length} IP Asset{ipAssets.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -230,19 +543,34 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
         </div>
       </div>
 
-      {/* Debug Info (remove in production) */}
-      {userIpIds.length === 0 && (
+      {/* Debug Info */}
+      {!isConnected && (
         <div className="mb-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-          <p className="text-xs text-yellow-400">No IP assets provided. Connect wallet or load IP assets first.</p>
+          <p className="text-xs text-yellow-400">Wallet not connected. Please connect to view claimable revenue.</p>
+        </div>
+      )}
+
+      {isConnected && ipAssets.length === 0 && !loading && (
+        <div className="mb-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+          <p className="text-xs text-yellow-400">No registered IP assets found. Register your NFTs as IP assets to earn revenue.</p>
+        </div>
+      )}
+
+      {/* Batch Claim Info */}
+      {ipAssets.length > 0 && (
+        <div className="mb-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+          <p className="text-xs text-yellow-400">
+            Will claim revenue from {ipAssets.length} IP asset{ipAssets.length !== 1 ? 's' : ''} and their derivatives in one batch transaction.
+          </p>
         </div>
       )}
 
       {/* Claim Button */}
       <button
         onClick={handleClaimAll}
-        disabled={claiming || loading || parseFloat(totalRevenue) === 0 || userIpIds.length === 0}
+        disabled={claiming || loading || parseFloat(totalRevenue) === 0 || ipAssets.length === 0 || !isConnected}
         className={`w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-          claiming || loading || parseFloat(totalRevenue) === 0 || userIpIds.length === 0
+          claiming || loading || parseFloat(totalRevenue) === 0 || ipAssets.length === 0 || !isConnected
             ? 'bg-zinc-700/50 text-zinc-500 cursor-not-allowed'
             : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white hover:shadow-lg'
         }`}
@@ -250,24 +578,26 @@ export const ClaimableRevenue: React.FC<ClaimableRevenueProps> = ({
         {claiming ? (
           <div className="flex items-center justify-center space-x-2">
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>Claiming...</span>
+            <span>Claiming Revenue...</span>
           </div>
         ) : loading ? (
           'Loading...'
-        ) : userIpIds.length === 0 ? (
+        ) : !isConnected ? (
+          'Connect Wallet'
+        ) : ipAssets.length === 0 ? (
           'No IP Assets'
         ) : parseFloat(totalRevenue) === 0 ? (
           'No Revenue to Claim'
         ) : (
-          `Claim All Revenue (${totalRevenue} ${tokenType})`
+          `Batch Claim All Revenue (${totalRevenue} ${tokenType})`
         )}
       </button>
 
       {/* Additional Info */}
       <div className="mt-3 text-xs text-zinc-500 flex justify-between">
-        <p>Claimer: {claimer.slice(0, 6)}...{claimer.slice(-4)}</p>
-        {userIpIds.length > 0 && (
-          <p>Checking {userIpIds.length} IP asset{userIpIds.length !== 1 ? 's' : ''}</p>
+        <p>Claimer: {claimer ? `${claimer.slice(0, 6)}...${claimer.slice(-4)}` : 'Not connected'}</p>
+        {ipAssets.length > 0 && (
+          <p>Checking {ipAssets.length} IP asset{ipAssets.length !== 1 ? 's' : ''}</p>
         )}
       </div>
     </div>

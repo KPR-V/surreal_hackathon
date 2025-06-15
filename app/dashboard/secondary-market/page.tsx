@@ -28,11 +28,6 @@ export default function SecondaryMarketplace() {
           </button>
       </div>
 
-      {/* Data Cards */}
-      <div className="px-8 mb-8">
-        <SecondaryDataCards />
-      </div>
-
       {/* Tabs */}
       <div className="px-8">
         <SecondaryMarketTabs />

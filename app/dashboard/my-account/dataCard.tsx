@@ -5,8 +5,8 @@ interface DataCardProps {
   value: string
   subtitle: string
   icon: React.ReactNode
-  trend?: string
-  trendUp?: boolean
+  badge?: string
+  badgeColor?: string
 }
 
 export const DataCard: React.FC<DataCardProps> = ({
@@ -14,8 +14,8 @@ export const DataCard: React.FC<DataCardProps> = ({
   value,
   subtitle,
   icon,
-  trend,
-  trendUp
+  badge,
+  badgeColor
 }) => {
   return (
     <div className="relative group">
@@ -32,21 +32,9 @@ export const DataCard: React.FC<DataCardProps> = ({
             </div>
           </div>
           
-          {trend && (
-            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-medium ${
-              trendUp 
-                ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
-                : 'bg-red-500/10 text-red-400 border border-red-500/20'
-            }`}>
-              <svg 
-                className={`w-3 h-3 ${trendUp ? 'rotate-0' : 'rotate-180'}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l5-5 5 5" />
-              </svg>
-              <span>{trend}</span>
+          {badge && (
+            <div className={`px-3 py-1.5 rounded-xl text-xs font-medium border ${badgeColor || 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'}`}>
+              <span>{badge}</span>
             </div>
           )}
         </div>

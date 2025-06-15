@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { LicenseConfigurationModal } from './licensingConfiguration';
+import { FamilyTreeVisualization } from '../my-account/familyTreeVisualization';
 
 interface IPAsset {
   id: string;
@@ -1332,7 +1333,15 @@ export const MarketplaceAssetDetails: React.FC<MarketplaceAssetDetailsProps> = (
             {/* Other tabs with proper scrolling */}
             {activeDetailTab === 'family' && (
               <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
-                <MarketplaceFamilyTree currentAsset={asset} />
+                <FamilyTreeVisualization currentAsset={{
+                  id: asset.id,
+                  name: asset.name,
+                  ipId: asset.ipId,
+                  ancestorCount: fullDetails?.statistics?.relationships?.ancestors || 0,
+                  parentCount: fullDetails?.statistics?.relationships?.parents || 0,
+                  childrenCount: fullDetails?.statistics?.relationships?.children || 0,
+                  descendantCount: fullDetails?.statistics?.relationships?.descendants || 0
+                }} />
               </div>
             )}
 

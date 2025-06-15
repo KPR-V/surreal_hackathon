@@ -672,7 +672,7 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
             
             {/* Also show past disputes indicator if there are resolved disputes but no active ones */}
             {isRegisteredIP && disputeInfo.activeDisputes.length === 0 && disputeInfo.resolvedDisputes.length > 0 && (
-              <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-yellow-500/80 rounded text-xs text-white font-medium shadow-md">
+              <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-red-500/80 rounded text-xs text-white font-medium shadow-md">
                 <div className="flex items-center space-x-1">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -787,7 +787,7 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
                       disputeInfo.activeDisputes.length > 0 
                         ? 'bg-red-400' 
                         : disputeInfo.hasDisputes 
-                          ? 'bg-yellow-400' 
+                          ? 'bg-red-400' 
                           : 'bg-green-400'
                     }`}></div>
                     <span className="text-xs text-zinc-400">
