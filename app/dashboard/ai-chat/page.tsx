@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Send, ImageIcon, Video, Music, Plus, Download, Share2, ChevronDown, Settings, Wand2, Info } from "lucide-react"
+import { Send, ImageIcon, Video, Music, Plus, Download, Share2, ChevronDown, Settings, Wand2, Info,AlertCircle } from "lucide-react"
 import axios from "axios"
 import { Buffer } from "buffer"
 import { useAccountModal } from "@tomo-inc/tomo-evm-kit"
@@ -43,7 +43,11 @@ export default function AIChatPage() {
   const [isTextareaFocused, setIsTextareaFocused] = useState(false)
   const [isUserTyping, setIsUserTyping] = useState(false)
   const { openAccountModal } = useAccountModal()
-  
+  // Add these new state variables after your existing ones
+const [imageError, setImageError] = useState<string | null>(null);
+const [videoError, setVideoError] = useState<string | null>(null);
+const [audioError, setAudioError] = useState<string | null>(null);
+
   // Audio settings
   const [audioSettings, setAudioSettings] = useState({
     samplingRate: 32000,
@@ -195,6 +199,7 @@ export default function AIChatPage() {
 
   const handleImageGenerate = async () => {
     setGenerating(true);
+    setImageError(null);
     try {
       let response: Response;
       let apiUsed = 'primary';
@@ -267,6 +272,8 @@ export default function AIChatPage() {
 
     } catch (err) {
       console.error("❌ Error during image generation:", err);
+      const errorMessage = err instanceof Error ? err.message : 'Image generation failed';
+      setImageError(errorMessage);
     } finally {
       setGenerating(false);
     }
@@ -274,6 +281,7 @@ export default function AIChatPage() {
 
   const handleVideoGenerate = async () => {
     setGeneratingVideo(true);
+    setVideoError(null);
     try {
       const response = await fetch("/api/video/generate", {
         method: "POST",
@@ -322,6 +330,8 @@ export default function AIChatPage() {
 
     } catch (err) {
       console.error("❌ Error during video generation:", err);
+      const errorMessage = err instanceof Error ? err.message : 'Video generation failed';
+    setVideoError(errorMessage);
     } finally {
       setGeneratingVideo(false);
     }
@@ -329,6 +339,7 @@ export default function AIChatPage() {
 
   const handleAudioGenerate = async () => {
     setGeneratingAudio(true);
+    setAudioError(null);
     try {
       let initAudioUrl = null;
       
@@ -383,6 +394,8 @@ export default function AIChatPage() {
 
     } catch (err) {
       console.error("❌ Error during audio generation:", err);
+      const errorMessage = err instanceof Error ? err.message : 'Audio generation failed';
+      setAudioError(errorMessage);
     } finally {
       setGeneratingAudio(false);
     }
@@ -946,125 +959,159 @@ export default function AIChatPage() {
 
         {/* Generated Content - Properly Centered with Dynamic Grid */}
         {hasGenerated && (
-          <div className="flex justify-center mt-12 animate-fade-in pb-32">
-            <div className="w-full max-w-6xl">
-              <h2 className="text-xl font-medium text-white/90 mb-6 text-center">Your Creations</h2>
-              
-              {generatedContent.length === 0 ? (
-                <div className="flex justify-center">
-                  <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-12 text-center max-w-2xl">
-                    <div className="text-white/50">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-white/5 rounded-full flex items-center justify-center">
-                        {/* Wave-like Loading Animation Dots */}
-                        <div className="flex space-x-1.5">
-                          <div className="w-2.5 h-2.5 bg-pink-400 rounded-full animate-wave-bounce"></div>
-                          <div className="w-2.5 h-2.5 bg-purple-400 rounded-full animate-wave-bounce delay-150"></div>
-                          <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-wave-bounce delay-300"></div>
-                        </div>
-                      </div>
-                      <p className="text-lg mb-2">Creating your masterpiece...</p>
-                      <p className="text-sm text-white/40">{getLoadingText()}</p>
-                    </div>
-                  </div>
+  <div className="flex justify-center mt-12 animate-fade-in pb-32">
+    <div className="w-full max-w-6xl">
+      <h2 className="text-xl font-medium text-white/90 mb-6 text-center">Your Creations</h2>
+      
+      {/* ✅ FIXED: Proper conditional logic */}
+      {(generating || generatingVideo || generatingAudio) ? (
+        // Still generating
+        <div className="flex justify-center">
+          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-12 text-center max-w-2xl">
+            <div className="text-white/50">
+              <div className="w-16 h-16 mx-auto mb-4 bg-white/5 rounded-full flex items-center justify-center">
+                <div className="flex space-x-1.5">
+                  <div className="w-2.5 h-2.5 bg-pink-400 rounded-full animate-wave-bounce"></div>
+                  <div className="w-2.5 h-2.5 bg-purple-400 rounded-full animate-wave-bounce delay-150"></div>
+                  <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-wave-bounce delay-300"></div>
                 </div>
-              ) : (
-                <div className="flex justify-center">
-                  <div className={`${getGridLayoutClasses(generatedContent.length)} transition-all duration-500 ease-in-out`}>
-                    {generatedContent.map((content, index) => (
-                      <div 
-                        key={content.id} 
-                        className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.04] transition-all duration-500 animate-slide-up w-full max-w-sm content-card" 
-                        style={{ 
-                          animationDelay: `${index * 100}ms`,
-                          transform: `translateX(0)`,
-                          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
-                        }}
-                      >
-                        {/* Content Display */}
-                        <div className="aspect-square bg-black/20 flex items-center justify-center overflow-hidden">
-                          {content.type === "image" && (
-                            <img
-                              src={content.url}
-                              alt="Generated content"
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                          {content.type === "video" && (
-                            <video
-                              src={content.url}
-                              controls
-                              loop
-                              muted
-                              className="w-full h-full object-cover"
-                              preload="metadata"
-                            />
-                          )}
-                          {content.type === "audio" && (
-                            <div className="flex flex-col items-center justify-center text-center p-8">
-                              <Music className="w-16 h-16 text-purple-400 mb-4" />
-                              <audio
-                                src={content.url}
-                                controls
-                                className="w-full"
-                                preload="metadata"
-                              />
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Content Info */}
-                        <div className="p-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                              content.type === "image" ? "bg-pink-500/20 text-pink-300" :
-                              content.type === "video" ? "bg-blue-500/20 text-blue-300" :
-                              "bg-purple-500/20 text-purple-300"
-                            }`}>
-                              {content.type.toUpperCase()}
-                            </span>
-                            <span className="text-xs text-white/40">
-                              {content.timestamp.toLocaleDateString()}
-                            </span>
-                            {content.metadata?.generationTime && (
-                              <span className="text-xs text-white/40">
-                                {content.metadata.generationTime}
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="text-white/80 text-sm mb-4 line-clamp-2">{content.prompt}</p>
-
-                          {/* Action Buttons */}
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => handleRegisterAsIPA(content)}
-                              className="bg-gradient-to-r from-pink-500/20 to-blue-500/20 hover:from-pink-500/30 hover:to-blue-500/30 text-pink-300 border border-pink-500/30 text-xs px-3 py-1.5 rounded-full flex-1 transition-all duration-200 flex items-center justify-center space-x-1 relative z-10"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>Register IP</span>
-                            </button>
-                            <button 
-                              className="border border-white/20 text-white/60 hover:text-white hover:border-white/30 text-xs px-3 py-1.5 rounded-full transition-all duration-200 relative z-10"
-                              onClick={() => handleDownload(content.url, content.type)}
-                            >
-                              <Download className="w-3 h-3" />
-                            </button>
-                            <button 
-                              className="border border-white/20 text-white/60 hover:text-white hover:border-white/30 text-xs px-3 py-1.5 rounded-full transition-all duration-200 relative z-10"
-                              onClick={() => handleShare(content.url, content.prompt, content.type)}
-                            >
-                              <Share2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              </div>
+              <p className="text-lg mb-2">Creating your masterpiece...</p>
+              <p className="text-sm text-white/40">{getLoadingText()}</p>
             </div>
           </div>
-        )}
+        </div>
+      ) : (imageError || videoError || audioError) ? (
+        // ✅ Show error state
+        <div className="flex justify-center">
+          <div className="bg-red-500/10 border border-red-400/30 rounded-2xl p-12 text-center max-w-2xl">
+            <div className="text-red-400">
+              <AlertCircle className="w-16 h-16 mx-auto mb-4" />
+              <p className="text-lg mb-2">Generation Failed</p>
+              <p className="text-sm mb-4">
+                TRY AGAIN
+                {/* {imageError || videoError || audioError} */}
+              </p>
+              <button
+                onClick={() => {
+                  // Clear errors and retry
+                  setImageError(null);
+                  setVideoError(null);
+                  setAudioError(null);
+                  handleGenerate();
+                }}
+                className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-400/50 rounded-lg text-red-300 transition-all duration-200"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : generatedContent.length === 0 ? (
+        // ✅ No content fallback
+        <div className="flex justify-center">
+          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl p-12 text-center max-w-2xl">
+            <p className="text-white/50">No content generated yet</p>
+          </div>
+        </div>
+      ) : (
+        // ✅ FIXED: Show generated content directly (removed duplicate loading state)
+        <div className="flex justify-center">
+          <div className={`${getGridLayoutClasses(generatedContent.length)} transition-all duration-500 ease-in-out`}>
+            {generatedContent.map((content, index) => (
+              <div 
+                key={content.id} 
+                className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.04] transition-all duration-500 animate-slide-up w-full max-w-sm content-card" 
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  transform: `translateX(0)`,
+                  transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                {/* Content Display */}
+                <div className="aspect-square bg-black/20 flex items-center justify-center overflow-hidden">
+                  {content.type === "image" && (
+                    <img
+                      src={content.url}
+                      alt="Generated content"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  {content.type === "video" && (
+                    <video
+                      src={content.url}
+                      controls
+                      loop
+                      muted
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                    />
+                  )}
+                  {content.type === "audio" && (
+                    <div className="flex flex-col items-center justify-center text-center p-8">
+                      <Music className="w-16 h-16 text-purple-400 mb-4" />
+                      <audio
+                        src={content.url}
+                        controls
+                        className="w-full"
+                        preload="metadata"
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Content Info */}
+                <div className="p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                      content.type === "image" ? "bg-pink-500/20 text-pink-300" :
+                      content.type === "video" ? "bg-blue-500/20 text-blue-300" :
+                      "bg-purple-500/20 text-purple-300"
+                    }`}>
+                      {content.type.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-white/40">
+                      {content.timestamp.toLocaleDateString()}
+                    </span>
+                    {content.metadata?.generationTime && (
+                      <span className="text-xs text-white/40">
+                        {content.metadata.generationTime}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-white/80 text-sm mb-4 line-clamp-2">{content.prompt}</p>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleRegisterAsIPA(content)}
+                      className="bg-gradient-to-r from-pink-500/20 to-blue-500/20 hover:from-pink-500/30 hover:to-blue-500/30 text-pink-300 border border-pink-500/30 text-xs px-3 py-1.5 rounded-full flex-1 transition-all duration-200 flex items-center justify-center space-x-1 relative z-10"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Register IP</span>
+                    </button>
+                    <button 
+                      className="border border-white/20 text-white/60 hover:text-white hover:border-white/30 text-xs px-3 py-1.5 rounded-full transition-all duration-200 relative z-10"
+                      onClick={() => handleDownload(content.url, content.type)}
+                    >
+                      <Download className="w-3 h-3" />
+                    </button>
+                    <button 
+                      className="border border-white/20 text-white/60 hover:text-white hover:border-white/30 text-xs px-3 py-1.5 rounded-full transition-all duration-200 relative z-10"
+                      onClick={() => handleShare(content.url, content.prompt, content.type)}
+                    >
+                      <Share2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
       </div>
 
       {/* Registration Modal */}

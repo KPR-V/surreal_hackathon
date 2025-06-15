@@ -39,9 +39,9 @@ import {
   monadTestnet,
   storyAeneid} from "wagmi/chains"
 
-
 const queryClient = new QueryClient();
 
+// Create config outside of component to prevent multiple initializations
 const config = getDefaultConfig({
   appName: "MintMatrix",
   clientId: process.env.NEXT_PUBLIC_TOMO_CLIENT_ID as string,
@@ -79,30 +79,21 @@ export function WalletProvider({ children }: PropsWithChildren) {
         <TomoEVMKitProvider 
           avatar={
             ({ address, ensImage, size }) => {
-              const src = (ensImage && ensImage.trim() !== '') ? ensImage : FALLBACK_AVATAR_SRC;
+              // Only use ensImage if it's a non-empty string
+              const src = ensImage && ensImage.trim() !== '' ? ensImage : FALLBACK_AVATAR_SRC;
               
               if (!src) {
                 return null; 
               }
 
-              return src ? (
+              return (
                 <img
                   src={src}
                   width={size}
                   height={size}
                   style={{ borderRadius: 999 }}
+                  alt={`Avatar for ${address}`}
                 />
-              ) : (
-                <div
-                  style={{
-                    backgroundColor: 'black',
-                    borderRadius: 999,
-                    height: size,
-                    width: size,
-                  }}
-                >
-                
-                </div>
               );
             }
           }

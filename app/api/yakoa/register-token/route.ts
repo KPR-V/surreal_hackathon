@@ -8,49 +8,50 @@ const YAKOA_API_KEY: string = process.env.YAKOA_API_KEY as string;
 
 const options = (
   network: string,
-  tokenId: string,
-  creatorId: string,
+  id: string,                    
+  creator_id: string,            
   metadata: { name: string },
   media: {
     media_id: string;
     url: string;
-    hash?: string;
+    hash?: string; 
     trust_reason?: { type: string; platform_name: string };
   }[],
-  registrationTx: {
+  registration_tx: {             
     hash: string;
     block_number: number;
     timestamp?: string;
   },
-  licenseParents?: {
-    license_id: string;
-    token_id: string;
-  }[],
-  authorizations?: {
-    authorization_id: string;
-    token_id: string;
-  }[]
+  license_parents?: { license_id: string; token_id: string }[], 
+  authorizations?: { authorization_id: string; token_id: string }[]
 ) => {
   const registrationTxData = {
-    hash: registrationTx.hash.toLowerCase(),// coverted to lower case transaction hash
-    block_number: Number(registrationTx.block_number) ,// block number converted to number
-    timestamp: registrationTx.timestamp
-    ? new Date(Number(registrationTx.timestamp) * 1000).toISOString()
+    hash: registration_tx.hash.toLowerCase(),
+    block_number: Number(registration_tx.block_number),
+    timestamp: registration_tx.timestamp
+    ? (() => {
+        if (typeof registration_tx.timestamp === 'string' && registration_tx.timestamp.includes('T')) {
+          return registration_tx.timestamp; 
+        }
+        return new Date(Number(registration_tx.timestamp) * 1000).toISOString();
+      })()
     : new Date().toISOString(),
   };
-  const mediaData = media.map(
-    (item: {
-      media_id: string;
-      url: string;
-      hash?: string;
-      trust_reason?: { type: string; platform_name: string };
-    }) => ({
+
+  const mediaData = media.map((item) => {
+    if (!item.hash || item.hash.trim() === "") {
+      throw new Error(
+        `Invalid payload: Media item with id '${item.media_id}' is missing a required hash.`
+      );
+    }
+    return {
       media_id: item.media_id,
       url: item.url,
-      hash: item.hash?.toLowerCase() || "",
+      hash: item.hash.toLowerCase(), 
       trust_reason: item.trust_reason || { type: "", platform_name: "" },
-    })
-  );
+    };
+  });
+
   return {
     method: "POST",
     url: `https://docs-demo.ip-api-sandbox.yakoa.io/${network}/token`,
@@ -60,12 +61,12 @@ const options = (
       "X-API-KEY": YAKOA_API_KEY,
     },
     data: {
-      id: tokenId.toLowerCase(), //tokenid is ipid converted to lowercase
-      registration_tx: registrationTxData,
-      creator_id: creatorId,
+      id: id.toLowerCase(),                        
+      registration_tx: registrationTxData,         
+      creator_id: creator_id.toLowerCase(),                      
       metadata: metadata,
       media: mediaData,
-      license_parents: licenseParents || null,
+      license_parents: license_parents || null,    
       authorizations: authorizations || null,
     },
   };
@@ -75,34 +76,50 @@ export async function POST(request: Request) {
   try {
     const {
       network,
-      tokenId,
-      creatorId,
+      id,              
+      creator_id,      
       metadata,
       media,
-      registrationTx,
-      licenseParents,
+      registration_tx, 
+      license_parents, 
       authorizations,
     } = await request.json();
-    const response = await axios.request(
-      options(
-        network,
-        tokenId,
-        creatorId,
-        metadata,
-        media,
-        registrationTx,
-        licenseParents,
-        authorizations
-      )
+
+    const requestOptions = options(
+      network,
+      id,              
+      creator_id,      
+      metadata,
+      media,
+      registration_tx, 
+      license_parents, 
+      authorizations
     );
+
+    const response = await axios.request(requestOptions);
+    
     return NextResponse.json({
       response: response.data,
       status: response.status,
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes("missing a required hash")) {
+      return NextResponse.json(
+        {
+          error: "Invalid Request Payload",
+          details: error.message,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.error("Yakoa API error:", error.response?.data || error.message);
     return NextResponse.json(
-      { error: "Failed to register token" },
-      { status: 400 }
+      {
+        error: "Failed to register token",
+        details: error.response?.data?.details || error.response?.data || error.message,
+      },
+      { status: error.response?.status || 500 }
     );
   }
 }
