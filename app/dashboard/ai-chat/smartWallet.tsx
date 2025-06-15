@@ -267,9 +267,9 @@ export default function SmartWallet({ onBack }: SmartWalletProps) {
         </h2>
         <span className='underline italic text-blue-500 text-xs'>Powered by Crossmint</span>
         </div>
-        <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-500/10 rounded-full border border-green-400/20">
-          <Sparkles className="w-3.5 h-3.5 text-green-400" />
-          <span className="text-green-400 text-xs font-medium">Beta</span>
+        <div className="flex items-center space-x-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-400/20">
+          <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+          <span className="text-yellow-400 text-xs font-medium">Development</span>
         </div>
       </div>
 
@@ -295,7 +295,7 @@ export default function SmartWallet({ onBack }: SmartWalletProps) {
               </p>
               <div className="mt-3 px-3 py-1.5 bg-amber-500/10 border border-amber-400/20 rounded-lg inline-flex items-center">
                 <Info className="w-4 h-4 text-amber-400 mr-2" />
-                <span className="text-xs text-amber-300">This feature is in beta testing and may undergo improvements in future updates</span>
+                <span className="text-xs text-amber-300">This feature is in development and is undergoing improvements.</span>
               </div>
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function SmartWallet({ onBack }: SmartWalletProps) {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left Side - Navigation */}
         <div className="lg:w-1/4">
-          <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 overflow-hidden">
+          <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 overflow-auto">
             {/* Navigation Tabs */}
             <div className="p-1">
               <button
