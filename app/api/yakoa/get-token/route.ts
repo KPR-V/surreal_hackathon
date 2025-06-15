@@ -17,15 +17,23 @@ const options = (network: string, tokenId: string)=>{
   }
 } 
 
-export async function GET(request: Request) {
+// Change this from GET to POST to match your client request
+export async function POST(request: Request) {
   try {
     const { network, tokenId } = await request.json();
+    console.log(`Yakoa API request: network=${network}, tokenId=${tokenId}`);
+    
     const response = await axios.request(options(network, tokenId));
+    console.log(`Yakoa API success: status=${response.status}`);
+    
     return NextResponse.json({
       response: response.data,
       status: response.status,
     });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to get token" }, { status: 400 });
+    console.error('Yakoa API error:', error);
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : "Failed to get token" 
+    }, { status: 400 });
   }
 }

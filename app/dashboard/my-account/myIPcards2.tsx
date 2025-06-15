@@ -8,6 +8,7 @@ import { FulfillLicenseTermsModal } from './fulfillLicenseTerms';
 import { UpdateMetadataModal } from './update-metadataModal';
 import { ClaimRevenueMyIPModal } from './claimRevenuemyIP';
 import { ClaimRevenueChildIPModal } from './claimRevenueChildip';
+import { RegisterYakoaModal } from './registerYakoa';
 import { MetadataService } from '../../../lib/services/metadataService';
 
 // Add PIL status interface similar to ipCardMarketplace.tsx
@@ -16,6 +17,17 @@ interface PILStatus {
   licenseCount: number;
   loading: boolean;
   error?: string;
+}
+
+// Add Yakoa infringement status interface
+interface YakoaInfringementStatus {
+  status: 'loading' | 'failed' | 'succeeded' | 'not_found';
+  result?: 'not_checked' | 'checked';
+  inNetworkInfringements: any[];
+  externalInfringements: any[];
+  loading: boolean;
+  error?: string;
+  isRegistered?: boolean; // Add this field to track registration status
 }
 
 interface NFTToken {
@@ -108,6 +120,7 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
   const [isUpdateMetadataModalOpen, setIsUpdateMetadataModalOpen] = useState(false);
   const [isClaimMyIPModalOpen, setIsClaimMyIPModalOpen] = useState(false);
   const [isClaimChildIPModalOpen, setIsClaimChildIPModalOpen] = useState(false);
+  const [isRegisterYakoaModalOpen, setIsRegisterYakoaModalOpen] = useState(false);
   const [ipAsset, setIpAsset] = useState<IPAsset | null>(null);
   const [loadingIpDetails, setLoadingIpDetails] = useState(false);
   const [relationships, setRelationships] = useState<RelationshipCounts>({ parents: 0, children: 0 });
@@ -116,6 +129,19 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
   const [isPilAttached, setIsPilAttached] = useState(false);
   const [isRegisteredIP, setIsRegisteredIP] = useState(false);
   const [enhancedMetadata, setEnhancedMetadata] = useState<EnhancedMetadata>({ loading: true });
+  
+  // Add Yakoa infringement status state
+  const [yakoaStatus, setYakoaStatus] = useState<YakoaInfringementStatus>({
+    status: 'loading',
+    inNetworkInfringements: [],
+    externalInfringements: [],
+    loading: true,
+    isRegistered: false
+  });
+  
+  // Add state for Yakoa shield tooltip visibility
+  const [showYakoaTooltip, setShowYakoaTooltip] = useState(false);
+  const yakoaTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [claimedRevenue, setClaimedRevenue] = useState<ClaimedRevenueData>({
     totalWipTokens: '0',
@@ -142,6 +168,182 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
   useEffect(() => {
     checkIPRegistration();
   }, [asset]);
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (yakoaTooltipTimeoutRef.current) {
+        clearTimeout(yakoaTooltipTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle card hover to show Yakoa tooltip
+  const handleCardMouseEnter = () => {
+    if (isRegisteredIP) {
+      setShowYakoaTooltip(true);
+      
+      // Clear any existing timeout
+      if (yakoaTooltipTimeoutRef.current) {
+        clearTimeout(yakoaTooltipTimeoutRef.current);
+      }
+      
+      // Set new timeout to hide tooltip after 2 seconds
+      yakoaTooltipTimeoutRef.current = setTimeout(() => {
+        setShowYakoaTooltip(false);
+      }, 2000);
+    }
+  };
+
+  const handleCardMouseLeave = () => {
+    // Clear timeout when mouse leaves
+    if (yakoaTooltipTimeoutRef.current) {
+      clearTimeout(yakoaTooltipTimeoutRef.current);
+    }
+    setShowYakoaTooltip(false);
+  };
+
+  // Add Yakoa API call function
+  const fetchYakoaInfringementStatus = async (ipId: string) => {
+    try {
+      setYakoaStatus(prev => ({ ...prev, loading: true }));
+      
+      const response = await fetch('/api/yakoa/get-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          network: 'story-aeneid',
+          tokenId: ipId
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.response && !data.response.status_code) {
+        // IP is registered with Yakoa
+        const yakoaData = data.response;
+        console.log('IP is registered with Yakoa:', yakoaData);
+        
+        if (yakoaData.infringements) {
+          const infringements = yakoaData.infringements;
+          
+          setYakoaStatus({
+            status: infringements.status === 'succeeded' ? 'succeeded' : 'failed',
+            result: infringements.result,
+            inNetworkInfringements: infringements.in_network_infringements || [],
+            externalInfringements: infringements.external_infringements || [],
+            loading: false,
+            isRegistered: true
+          });
+        } else {
+          setYakoaStatus({
+            status: 'succeeded',
+            inNetworkInfringements: [],
+            externalInfringements: [],
+            loading: false,
+            isRegistered: true
+          });
+        }
+      } else if (response.status === 404 || (data.response && data.response.status_code === 404)) {
+        // IP is not registered with Yakoa
+        console.log('IP is not registered with Yakoa');
+        setYakoaStatus({
+          status: 'not_found',
+          inNetworkInfringements: [],
+          externalInfringements: [],
+          loading: false,
+          isRegistered: false
+        });
+      } else {
+        setYakoaStatus({
+          status: 'failed',
+          inNetworkInfringements: [],
+          externalInfringements: [],
+          loading: false,
+          error: data.error || 'Failed to fetch Yakoa data',
+          isRegistered: false
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching Yakoa infringement status:', error);
+      setYakoaStatus({
+        status: 'failed',
+        inNetworkInfringements: [],
+        externalInfringements: [],
+        loading: false,
+        error: 'Network error',
+        isRegistered: false
+      });
+    }
+  };
+
+  // Get Yakoa shield display properties
+  const getYakoaShieldDisplay = () => {
+    if (yakoaStatus.loading) {
+      return {
+        color: 'text-zinc-400',
+        bgColor: 'bg-zinc-400/10',
+        tooltip: 'Checking Yakoa infringement status...',
+        icon: 'loading'
+      };
+    }
+
+    switch (yakoaStatus.status) {
+      case 'failed':
+        return {
+          color: 'text-gray-400',
+          bgColor: 'bg-gray-400/10',
+          tooltip: 'Yakoa infringement scan failed',
+          icon: 'shield'
+        };
+      
+      case 'not_found':
+        return {
+          color: 'text-zinc-400',
+          bgColor: 'bg-zinc-400/10',
+          tooltip: 'Not registered to Yakoa',
+          icon: 'shield'
+        };
+      
+      case 'succeeded':
+        if (yakoaStatus.result === 'not_checked') {
+          return {
+            color: 'text-yellow-400',
+            bgColor: 'bg-yellow-400/10',
+            tooltip: 'Pending Yakoa infringement scan',
+            icon: 'shield'
+          };
+        }
+        
+        const hasInfringements = yakoaStatus.inNetworkInfringements.length > 0 || yakoaStatus.externalInfringements.length > 0;
+        
+        if (hasInfringements) {
+          return {
+            color: 'text-red-400',
+            bgColor: 'bg-red-400/10',
+            tooltip: 'Infringement detected by Yakoa',
+            icon: 'shield'
+          };
+        }
+        
+        return {
+          color: 'text-green-400',
+          bgColor: 'bg-green-400/10',
+          tooltip: 'No infringements, Yakoa verified',
+          icon: 'shield'
+        };
+      
+      default:
+        return {
+          color: 'text-zinc-400',
+          bgColor: 'bg-zinc-400/10',
+          tooltip: 'Unknown status',
+          icon: 'shield'
+        };
+    }
+  };
 
   const checkIPRegistration = async () => {
     try {
@@ -207,11 +409,110 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
             loadClaimedRevenue(ipData.ipId);
             fetchEnhancedMetadata(ipData.ipId);
             fetchPILStatus(ipData.ipId);
+            // Fetch Yakoa infringement status for registered IPs
+            fetchYakoaInfringementStatus(ipData.ipId);
           }
+        } else {
+          // Not registered as IP asset
+          setIsRegisteredIP(false);
+          setIsPilAttached(false);
+          
+          // Still create a basic IP asset structure for potential Yakoa registration
+          const basicIpAsset: IPAsset = {
+            id: asset.id,
+            name: getName(),
+            type: "NFT",
+            status: "Not Registered",
+            pilAttached: false,
+            revenue: "$0",
+            derivatives: 0,
+            image: getImageUrl() || '',
+            ipId: '', // Will be empty for non-registered assets
+            tokenContract: asset.token.address,
+            tokenId: asset.id,
+            blockNumber: '',
+            nftMetadata: {
+              name: getName(),
+              imageUrl: getImageUrl() || '',
+              tokenContract: asset.token.address,
+              tokenId: asset.id,
+              chainId: 'story-aeneid',
+              tokenUri: ''
+            },
+            ancestorCount: 0,
+            descendantCount: 0,
+            childrenCount: 0,
+            parentCount: 0,
+            rootCount: 0,
+            rootIpIds: [],
+            blockTimestamp: '',
+            transactionHash: '',
+            isGroup: false,
+            latestArbitrationPolicy: '',
+            detailsLoaded: false
+          };
+          
+          setIpAsset(basicIpAsset);
+          
+          // FIX: Check Yakoa status even for non-registered IP assets
+          // Use the NFT token address + token ID as the identifier for Yakoa
+          const yakoa_token_id = `${asset.token.address.toLowerCase()}:${asset.id}`;
+          fetchYakoaInfringementStatus(yakoa_token_id);
         }
+      } else {
+        // API call failed
+        setIsRegisteredIP(false);
+        setIsPilAttached(false);
+        
+        // Still create a basic structure and check Yakoa
+        const basicIpAsset: IPAsset = {
+          id: asset.id,
+          name: getName(),
+          type: "NFT",
+          status: "Unknown",
+          pilAttached: false,
+          revenue: "$0",
+          derivatives: 0,
+          image: getImageUrl() || '',
+          ipId: '',
+          tokenContract: asset.token.address,
+          tokenId: asset.id,
+          blockNumber: '',
+          nftMetadata: {
+            name: getName(),
+            imageUrl: getImageUrl() || '',
+            tokenContract: asset.token.address,
+            tokenId: asset.id,
+            chainId: 'story-aeneid',
+            tokenUri: ''
+          },
+          ancestorCount: 0,
+          descendantCount: 0,
+          childrenCount: 0,
+          parentCount: 0,
+          rootCount: 0,
+          rootIpIds: [],
+          blockTimestamp: '',
+          transactionHash: '',
+          isGroup: false,
+          latestArbitrationPolicy: '',
+          detailsLoaded: false
+        };
+        
+        setIpAsset(basicIpAsset);
+        
+        // Check Yakoa status for NFT
+        const yakoa_token_id = `${asset.token.address.toLowerCase()}:${asset.id}`;
+        fetchYakoaInfringementStatus(yakoa_token_id);
       }
     } catch (error) {
       console.error('Error checking IP registration:', error);
+      setIsRegisteredIP(false);
+      setIsPilAttached(false);
+      
+      // Still check Yakoa status even if IP check fails
+      const yakoa_token_id = `${asset.token.address.toLowerCase()}:${asset.id}`;
+      fetchYakoaInfringementStatus(yakoa_token_id);
     }
   };
 
@@ -539,6 +840,14 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
     updateClaimedRevenue(wipAmount, merc20Amount);
   };
 
+  const handleRegisterYakoa = (data: any) => {
+    console.log('Yakoa registration successful:', data);
+    // Refresh Yakoa status after successful registration
+    if (ipAsset?.ipId) {
+      fetchYakoaInfringementStatus(ipAsset.ipId);
+    }
+  };
+
   // Use enhanced metadata for display (similar to ipCardMarketplace)
   const displayName = isRegisteredIP 
     ? enhancedMetadata.nftName || enhancedMetadata.ipTitle || getName()
@@ -649,10 +958,15 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
   };
 
   const pilStatusDisplay = getPILStatusDisplay();
+  const yakoaShieldDisplay = getYakoaShieldDisplay();
 
   return (
     <>
-      <div className="relative group">
+      <div 
+        className="relative group"
+        onMouseEnter={handleCardMouseEnter}
+        onMouseLeave={handleCardMouseLeave}
+      >
         <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500/5 via-purple-500/5 to-blue-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm"></div>
         
         <div className="relative bg-zinc-900/40 backdrop-blur-xl border border-zinc-700/20 rounded-2xl overflow-hidden hover:border-zinc-600/30 transition-all duration-300 shadow-xl hover:shadow-2xl">
@@ -725,7 +1039,7 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
           </div>
 
           <div className="p-6">
-            {/* Header section remains the same... */}
+            {/* Header section with Yakoa shield */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-light text-white group-hover:text-blue-300 transition-colors duration-300 truncate" title={displayName}>
@@ -750,6 +1064,29 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
                   >
                     {isRegisteredIP && ipAsset ? truncateHash(ipAsset.ipId) : `#${asset.id}`}
                   </button>
+                  
+                  {/* Yakoa Shield Icon - only show for registered IPs */}
+                  {isRegisteredIP && (
+                    <div className="relative">
+                      <div className={`p-1 rounded ${yakoaShieldDisplay.bgColor}`}>
+                        {yakoaShieldDisplay.icon === 'loading' ? (
+                          <div className={`w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ${yakoaShieldDisplay.color}`}></div>
+                        ) : (
+                          <svg className={`w-3 h-3 ${yakoaShieldDisplay.color}`} fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1Z" />
+                          </svg>
+                        )}
+                      </div>
+                      
+                      {/* Tooltip - show when card is hovered */}
+                      {showYakoaTooltip && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 text-white text-xs rounded whitespace-nowrap z-50 transition-opacity duration-200">
+                          {yakoaShieldDisplay.tooltip}
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-zinc-800"></div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -787,7 +1124,7 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
                       disputeInfo.activeDisputes.length > 0 
                         ? 'bg-red-400' 
                         : disputeInfo.hasDisputes 
-                          ? 'bg-red-400' 
+                          ? 'bg-yellow-400' 
                           : 'bg-green-400'
                     }`}></div>
                     <span className="text-xs text-zinc-400">
@@ -850,11 +1187,10 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
               </button>
               
               {/* Manage Button with Dynamic Arrow */}
-              <button 
+               <button 
                 ref={manageButtonRef}
                 onClick={handleManageClick}
-                disabled={!isRegisteredIP}
-                className="px-3 py-2 bg-gradient-to-r from-blue-500/10 to-pink-500/10 hover:from-blue-500/20 hover:to-pink-500/20 text-blue-400 rounded-lg text-xs font-medium transition-all duration-200 border border-blue-500/20 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 bg-gradient-to-r from-blue-500/10 to-pink-500/10 hover:from-blue-500/20 hover:to-pink-500/20 text-blue-400 rounded-lg text-xs font-medium transition-all duration-200 border border-blue-500/20 flex items-center space-x-1"
               >
                 <span>Manage</span>
                 <svg 
@@ -873,8 +1209,8 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
         </div>
       </div>
 
-      {/* Tooltip, Modals, and rest of the component remain the same... */}
-      {isTooltipOpen && isRegisteredIP && (
+      {/* Updated Tooltip - Show for all assets, not just registered IPs */}
+      {isTooltipOpen && (
         <>
           {/* Click outside to close tooltip */}
           <div 
@@ -892,105 +1228,160 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
           >
             <div className="bg-zinc-800/95 backdrop-blur-xl border border-zinc-700/30 rounded-xl p-3 shadow-2xl">
               <div className="space-y-2">
-                {/* Fulfill License Terms Card */}
+                {/* Register to Yakoa Card - Show for all assets */}
                 <button
                   onClick={() => {
-                    setIsFulfillModalOpen(true);
+                    setIsRegisterYakoaModalOpen(true);
                     setIsTooltipOpen(false);
                   }}
                   className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-orange-500/10 rounded-lg group-hover:bg-orange-500/20 transition-colors">
-                      <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <div className="p-2 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
+                      <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1Z" />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white group-hover:text-orange-300 transition-colors">
-                        Fulfill License Terms
+                      <p className="text-sm font-medium text-white group-hover:text-blue-300 transition-colors">
+                        {yakoaStatus.isRegistered ? 'Update Yakoa Registration' : 'Register to Yakoa'}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        Pay royalties on behalf of another party
+                        {yakoaStatus.isRegistered 
+                          ? 'Update infringement monitoring settings'
+                          : 'Enable infringement monitoring and protection'
+                        }
                       </p>
                     </div>
+                    {yakoaStatus.isRegistered && (
+                      <div className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                        Registered
+                      </div>
+                    )}
                   </div>
                 </button>
 
-                {/* Update Metadata Card */}
-                <button
-                  onClick={() => {
-                    setIsUpdateMetadataModalOpen(true);
-                    setIsTooltipOpen(false);
-                  }}
-                  className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-cyan-500/10 rounded-lg group-hover:bg-cyan-500/20 transition-colors">
-                      <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                {/* Show message for non-registered IP assets */}
+                {!isRegisteredIP && (
+                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <svg className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white group-hover:text-cyan-300 transition-colors">
-                        Update Metadata
-                      </p>
-                      <p className="text-xs text-zinc-400">
-                        Modify IP Asset metadata information
-                      </p>
+                      <div>
+                        <p className="text-sm font-medium text-yellow-300 mb-1">Not an IP Asset</p>
+                        <p className="text-xs text-zinc-400">
+                          This NFT is not registered as an IP Asset in Story Protocol. Most management features require IP registration.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </button>
+                )}
 
-                {/* Claim My IP Revenue Card */}
-                <button
-                  onClick={() => {
-                    setIsClaimMyIPModalOpen(true);
-                    setIsTooltipOpen(false);
-                  }}
-                  className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-green-500/10 rounded-lg group-hover:bg-green-500/20 transition-colors">
-                      <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white group-hover:text-green-300 transition-colors">
-                        Claim My IP Revenue
-                      </p>
-                      <p className="text-xs text-zinc-400">
-                        Collect revenue generated by this IP
-                      </p>
-                    </div>
-                  </div>
-                </button>
+                {/* Show other management options only for registered IP assets */}
+                {isRegisteredIP && (
+                  <>
+                    {/* Fulfill License Terms */}
+                    <button
+                      onClick={() => {
+                        setIsFulfillModalOpen(true);
+                        setIsTooltipOpen(false);
+                      }}
+                      className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-orange-500/10 rounded-lg group-hover:bg-orange-500/20 transition-colors">
+                          <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white group-hover:text-orange-300 transition-colors">
+                            Fulfill License Terms
+                          </p>
+                          <p className="text-xs text-zinc-400">
+                            Pay royalties on behalf of another party
+                          </p>
+                        </div>
+                      </div>
+                    </button>
 
-                {/* Claim Child IP Revenue Card */}
-                <button
-                  onClick={() => {
-                    setIsClaimChildIPModalOpen(true);
-                    setIsTooltipOpen(false);
-                  }}
-                  className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-purple-500/10 rounded-lg group-hover:bg-purple-500/20 transition-colors">
-                      <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">
-                        Claim Child IP Revenue
-                      </p>
-                      <p className="text-xs text-zinc-400">
-                        Collect revenue from derivative works
-                      </p>
-                    </div>
-                  </div>
-                </button>
+                    {/* Update Metadata Card */}
+                    <button
+                      onClick={() => {
+                        setIsUpdateMetadataModalOpen(true);
+                        setIsTooltipOpen(false);
+                      }}
+                      className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-cyan-500/10 rounded-lg group-hover:bg-cyan-500/20 transition-colors">
+                          <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white group-hover:text-cyan-300 transition-colors">
+                            Update Metadata
+                          </p>
+                          <p className="text-xs text-zinc-400">
+                            Modify IP Asset metadata information
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Claim My IP Revenue Card */}
+                    <button
+                      onClick={() => {
+                        setIsClaimMyIPModalOpen(true);
+                        setIsTooltipOpen(false);
+                      }}
+                      className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-green-500/10 rounded-lg group-hover:bg-green-500/20 transition-colors">
+                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white group-hover:text-green-300 transition-colors">
+                            Claim My IP Revenue
+                          </p>
+                          <p className="text-xs text-zinc-400">
+                            Collect revenue generated by this IP
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Claim Child IP Revenue Card */}
+                    <button
+                      onClick={() => {
+                        setIsClaimChildIPModalOpen(true);
+                        setIsTooltipOpen(false);
+                      }}
+                      className="w-full p-3 bg-zinc-700/40 hover:bg-zinc-600/40 border border-zinc-600/20 hover:border-zinc-500/30 rounded-lg transition-all duration-200 text-left group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-purple-500/10 rounded-lg group-hover:bg-purple-500/20 transition-colors">
+                          <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">
+                            Claim Child IP Revenue
+                          </p>
+                          <p className="text-xs text-zinc-400">
+                            Collect revenue from derivative works
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             
@@ -1041,6 +1432,21 @@ export const NFTCard: React.FC<NFTCardProps> = ({ asset, cardIndex }) => {
             onClose={() => setIsClaimChildIPModalOpen(false)}
             currentIpId={normalizedAssetForModal.ipId}
             onClaim={handleClaimChildIP}
+          />
+
+          {/* Add Register Yakoa Modal */}
+          <RegisterYakoaModal
+            isOpen={isRegisterYakoaModalOpen}
+            onClose={() => setIsRegisterYakoaModalOpen(false)}
+            ipAsset={{
+              ipId: normalizedAssetForModal.ipId,
+              name: normalizedAssetForModal.name,
+              image: normalizedAssetForModal.image,
+              transactionHash: normalizedAssetForModal.transactionHash,
+              blockNumber: normalizedAssetForModal.blockNumber,
+              blockTimestamp: normalizedAssetForModal.blockTimestamp
+            }}
+            onRegister={handleRegisterYakoa}
           />
         </>
       )}
