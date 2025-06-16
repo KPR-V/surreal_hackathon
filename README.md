@@ -7,7 +7,7 @@
 
 <img src="public/logo.png" alt="Mint Matrix Logo" width="200"/>
 
-[🎬 **LIVE DEMO**](https://mintmatrix.vercel.app/) | [📹 **VIDEO WALKTHROUGH**](youtubelink) 
+[🎬 **LIVE DEMO**](https://mintmatrix.vercel.app/) | [📹 **VIDEO WALKTHROUGH**](https://youtu.be/k0f0erdkw5Q) 
 
 [![Report Bug](https://img.shields.io/badge/Report%20Bug-FFB6C1?style=for-the-badge&logo=github&logoColor=black)](https://github.com/KPR-V/surreal_hackathon/issues/new?template=bug_report.md) [![Request Feature](https://img.shields.io/badge/Request%20Feature-98FB98?style=for-the-badge&logo=github&logoColor=black)](https://github.com/KPR-V/surreal_hackathon/issues/new?template=feature_request.md) [![View Docs](https://img.shields.io/badge/View%20Docs-ADD8E6?style=for-the-badge&logo=github&logoColor=black)](https://mint-matrix.gitbook.io/mint-matrix-docs)
 
@@ -61,7 +61,7 @@ Mint Matrix unifies the entire IP lifecycle into a single blockchain-powered pla
 
 🌐 **[Live Application](https://mintmatrix.vercel.app/)** 
 
-📺 **[3-Minute Demo Video](youtubelink)** - Complete feature walkthrough
+📺 **[5-Minute Demo Video](https://youtu.be/k0f0erdkw5Q)** - Complete feature walkthrough
 
 * * * * *
 ## ✨ Features
@@ -233,7 +233,7 @@ npm run dev
 
 -   **Implementation**: Seamless multi-chain wallet connectivity enabling users to interact with Story Protocol and other blockchain networks
 
--   **Location**: Integrated across all components requiring wallet functionality
+-   **Location**: `/components/providers/wallet-provider.tsx`Integrated across all components requiring wallet functionality
 
 **3. Yakoa API Integration**
 -------------------------
@@ -264,7 +264,7 @@ npm run dev
 
 -   **Implementation**: Handles user onboarding, wallet management, and streamlined IP asset operations
 -   **Tavily-pulgin**: Made a pulgin for tavily to use web search and web page extraction 
--   **Location**: `/api/crossmint/` and `app/ai-chat/smartWallet.tsx/`
+-   **Location**: `/api/crossmint/` , `app/ai-chat/smartWallet.tsx/` and `/lib/goat-plugins`
 
 -   **Extended Functionality**: Crossmint's smart wallet technology enables delegated signing capabilities, allowing AI agents to perform transactions on behalf of users within predefined limits. The integration includes advanced features like programmable spending controls, automated transaction batching, and seamless fiat-to-crypto onramp for simplified user adoption.
 
