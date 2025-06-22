@@ -429,7 +429,7 @@ export const StatsCards = forwardRef<{ refresh: () => Promise<void> }>((props, r
       )
     },
 
-    // Gas Price Average
+    // Gas Price Average - FIXED ICON
     {
       title: "Avg Gas Price",
       value: `${statsData.gas_prices.average} gwei`,
@@ -441,7 +441,8 @@ export const StatsCards = forwardRef<{ refresh: () => Promise<void> }>((props, r
       tooltip: "Average gas price for standard-speed transactions. Gas prices fluctuate based on network demand and determine transaction processing priority and cost.",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 18.657A8 8 0 716.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.5 15L15.5 17L17.5 19M13.5 15L15.5 17L13.5 19" />
         </svg>
       )
     },
