@@ -3,7 +3,8 @@ import type { Metadata } from 'next';
 import { Inter, Red_Hat_Display, Pacifico,Satisfy } from 'next/font/google';
 import './globals.css';
 import { ClientProviders } from './ClientProviders'; 
-
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/next';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 // Add other fonts if you use them globally
 
@@ -43,6 +44,8 @@ export default function RootLayout({
 
         <ClientProviders>
           {children}
+          <Analytics/>
+          <SpeedInsights/>
         </ClientProviders>
       </body>
     </html>
